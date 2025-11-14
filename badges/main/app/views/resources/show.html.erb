@@ -1,0 +1,116 @@
+<div class="resource-detail py-6 min-h-screen">
+  <div class="max-w-5xl mx-auto px-4">
+
+    <div class="flex justify-end mb-6">
+      <% if current_user.super_user? %>
+        <%= link_to("Edit", edit_resource_path(@resource), class: "btn btn-primary-outline admin-only bg-blue-100") %>
+      <% end %>
+
+      <%= link_to ("<span title='Download #{@resource.kind} image'>" +
+        " Download <span class='fa fa-download'></span></span>").html_safe,
+                  resource_download_path(@resource),
+                  class: "btn btn-utility" if @resource.download_attachment&.file&.attached? %>
+      <%= render "bookmarks/editable_bookmark_button", resource: @resource.object %>
+    </div>
+
+
+    <!-- Resource Card -->
+    <div class="bg-white rounded-lg shadow-md p-6 space-y-6">
+
+      <!-- Title -->
+      <h2 class="text-3xl font-semibold text-gray-900">
+        <%= @resource.display_title %>
+      </h2>
+
+      <% if @resource.inactive? %>
+        <div class="text-red-500 mb-3">
+          [HIDDEN]
+        </div>
+      <% end %>
+
+      <!-- Author and Date -->
+      <div class="flex flex-col gap-1">
+        <% unless @resource.toolkit_and_form? %>
+          <div class="flex items-center text-gray-600 text-sm gap-2">
+            <span><%= @resource.author %></span>
+            <% unless @resource.story? %>
+              <span class="<%= "border-l border-gray-400 pl-2" if @resource.author.present? %>">
+                <%= @resource.display_date %>
+              </span>
+            <% end %>
+          </div>
+        <% end %>
+      </div>
+
+      <!-- Main Image -->
+      <% if @resource.main_image.present? %>
+        <div class="flex justify-start">
+          <% image_url = @resource.main_image_url rescue nil %>
+          <% if image_url %>
+            <% if @resource.kind == 'LeaderSpotlight' %>
+              <%= link_to image_url,
+                          download: @resource.main_image.file_file_name do %>
+                <%= image_tag image_url,
+                              class: 'max-h-[400px] w-auto rounded-lg shadow-lg mb-4 object-cover',
+                              alt: @resource.display_title,
+                              onerror: "this.onerror=null;this.src='/assets/missing.png';" %>
+              <% end %>
+            <% else %>
+              <%= link_to image_url,
+                          download: @resource.main_image.file_file_name do %>
+                <%= image_tag image_url,
+                              class: 'w-full h-48 bg-gray-200 rounded-md flex items-center justify-center text-gray-400 object-cover',
+                              alt: @resource.display_title,
+                              onerror: "this.onerror=null;this.src='/assets/missing.png';" %>
+              <% end %>
+            <% end %>
+          <% else %>
+            <div class="w-full h-24 bg-gray-200 rounded-md flex items-center justify-center text-gray-400">
+              No image available
+            </div>
+          <% end %>
+        </div>
+      <% else %>
+        <div class="w-full h-24 bg-gray-200 rounded-md flex items-center justify-center text-gray-400">
+          No image available
+        </div>
+      <% end %>
+
+
+      <!-- URL -->
+      <% if @resource.url.present? %>
+        <div class="prose mx-auto leading-relaxed text-gray-800 text-left">
+          <%= link_to @resource.url, @resource.url, target: "_blank",
+                      rel: "noopener noreferrer",
+                      class: "text-blue-600 hover:underline break-words" %>
+        </div>
+      <% end %>
+
+
+      <!-- Main Text -->
+      <div class="prose mx-auto leading-relaxed text-gray-800 text-left">
+        <%= @resource.display_text %>
+      </div>
+
+      <!-- Attachments -->
+      <% if @resource.attachments.any? %>
+        <div class="mt-6">
+          <p class="font-medium text-gray-700 mb-2">Attachment:</p>
+          <ul class="flex flex-wrap gap-2">
+            <% @resource.attachments.each do |attachment| %>
+              <% if attachment.file&.attached? %>
+                <li>
+                  <%= link_to ("<span title='Download #{@resource.kind}'>" +
+                                " #{ attachment.file_file_name } <span class='fa fa-download'></span></span>").html_safe,
+                              resource_download_path(@resource,
+                                                     attachment_id: attachment.id),
+                              class: "btn btn-utility" if attachment&.file&.attached? %>
+                </li>
+              <% end %>
+            <% end %>
+          </ul>
+        </div>
+      <% end %>
+    </div>
+  </div>
+</div>

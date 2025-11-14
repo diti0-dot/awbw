@@ -1,0 +1,35 @@
+<div>
+  <h1>Report</h1>
+  <hr />
+
+  <p>
+  <b>Project:</b>
+  <%= @report.project.name %>
+  </p>
+
+  <p>
+   <b>Created by: </b><%= @report.user.decorate.full_name %>
+  </p>
+
+  <p>
+   <b>Created: </b><%= time_ago_in_words( @report.created_at ) %> ago
+  </p>
+
+  <p>
+   <b>Log Type: </b><%= @report.windows_type.label if @report.windows_type %>
+  </p>
+
+  <br />
+
+  <!-- Dynamic Form Fields -->
+  <div class="row">
+    <div class="col-md-9">
+      <hr>
+      <% @report.report_form_field_answers.each do |rffa| %>
+        <p>
+          <b><%= rffa.form_field.question %>: </b><%= rffa.answer_option_id ? rffa.answer_option.name : rffa.answer %>
+        </p>
+      <% end %>
+    </div>
+  </div>
+</div>
