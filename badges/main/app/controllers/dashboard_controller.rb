@@ -2,21 +2,21 @@ class DashboardController < ApplicationController
   skip_before_action :authenticate_user!, only: :help
 
   def index
-    workshops = Workshop.published
-                        .featured
+    workshops = Workshop.featured
+                        .published
                         .includes(:sectors)
                         .decorate
-    @featured_workshops = workshops.sort { |x, y| Date.parse(y.date) <=> Date.parse(x.date) }
+    @workshops = workshops.sort { |x, y| Date.parse(y.date) <=> Date.parse(x.date) }
 
-    @popular_resources = Resource.featured
-                                 .published
-                                 .published_kinds
-                                 .order(ordering: :asc, created_at: :desc)
-                                 .decorate
+    @resources = Resource.featured
+                         .published
+                         .published_kinds
+                         .order(ordering: :asc, created_at: :desc)
+                         .decorate
 
-    @stories = Resource.story.published.featured.decorate
-    @community_news = CommunityNews.published.featured.decorate
-    @events = Event.publicly_visible.decorate
+    @stories = Story.featured.published.order(:title).decorate
+    @community_news = CommunityNews.featured.published.order(updated_at: :desc).decorate
+    @events = Event.featured.publicly_visible.order(:start_date).decorate
   end
 
   def admin

@@ -60,7 +60,7 @@ class StoriesController < ApplicationController
     @story_ideas = StoryIdea.includes(:created_by)
                             .references(:users)
                             .order(:created_at)
-    @windows_types = WindowsType.all.order(:name)
+    @windows_types = WindowsType.all
     @workshops = Workshop.all.order(:title)
     @users = User.active.or(User.where(id: @story.created_by_id))
                  .order(:first_name, :last_name)
@@ -86,7 +86,7 @@ class StoriesController < ApplicationController
   # Strong parameters
   def story_params
     params.require(:story).permit(
-      :title, :body, :youtube_url, :published,
+      :title, :body, :featured, :published, :youtube_url, :website_url,
       :windows_type_id, :project_id, :workshop_id,
       :created_by_id, :updated_by_id, :story_idea_id, :spotlighted_facilitator_id,
       :main_image, images: []

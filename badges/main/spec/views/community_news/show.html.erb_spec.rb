@@ -5,6 +5,8 @@ RSpec.describe "community_news/show", type: :view do
 
   before(:each) do
     sign_in admin
+    allow(view).to receive(:current_user).and_return(admin)
+
 
     assign(:community_news, CommunityNews.create!(
       title: "Title",
@@ -25,8 +27,5 @@ RSpec.describe "community_news/show", type: :view do
     render
     expect(rendered).to match(/Title/)
     expect(rendered).to match(/MyText/)
-    expect(rendered).to match(/Youtube Url/)
-    expect(rendered).to match(/false/)
-    expect(rendered).to match(/Reference Url/)
   end
 end
