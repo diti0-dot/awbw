@@ -1,4 +1,14 @@
 Rails.application.routes.draw do
+  # temporary direct routes to images for migration audit
+  resources :attachments, only: [:show]
+  resources :media_files, only: [:show]
+  namespace :images do
+    resources :main_images, only: [:show]
+    resources :gallery_images, only: [:show]
+    resources :rich_texts, only: [:show]
+  end
+  resources :images, only: [:show]
+
   # mount Ckeditor::Engine, at: '/admin/ckeditor', as: 'ckeditor'
   apipie
   devise_for :users,
@@ -14,12 +24,8 @@ Rails.application.routes.draw do
   get 'dashboard/admin', to: 'dashboard#admin'
   get 'dashboard/recent_activities', to: 'dashboard#recent_activities'
   get 'dashboard/help', to: 'dashboard#help'
+  get "image_migration_audit", to: "image_migration_audit#index"
 
-  resources :workshops do
-    collection do
-      post :search
-    end
-  end
   resources :banners
   resources :bookmarks do
     post :search
@@ -35,6 +41,7 @@ Rails.application.routes.draw do
   end
   resources :facilitators
   resources :faqs
+  resources :notifications, only: [:show]
   resources :organizations
   resources :projects
   resources :project_users
@@ -57,23 +64,26 @@ Rails.application.routes.draw do
   get 'monthly_reports', to: 'monthly_reports#monthly'
 
   get 'reports/annual', to: 'reports#annual'
-
   resources :reports
-
   resources :resources do
     get :download
     collection do
       post :search
     end
   end
-
+  resources :sectors
   resources :story_ideas
   resources :stories
+  resources :windows_types
   resources :workshop_ideas
   resources :workshop_logs
   resources :workshop_log_creation_wizard
   resources :workshop_variations
-  resources :workshops
+  resources :workshops do
+    collection do
+      post :search
+    end
+  end
 
   namespace :api do
     namespace :v1 do

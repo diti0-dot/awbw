@@ -12,7 +12,7 @@ class WorkshopLogsController < ApplicationController
                    .or(WorkshopLog.project_id(current_user.project_ids))
       end
     @workshop_logs_unpaginated = permitted_logs.includes(:workshop, :user, :windows_type)
-                                            .search(params)
+                                               .search(params)
     @workshop_logs_count = @workshop_logs_unpaginated.size
     @workshop_logs = @workshop_logs_unpaginated.paginate(page: params[:page], per_page: @per_page)
     set_index_variables
@@ -129,16 +129,24 @@ class WorkshopLogsController < ApplicationController
   private
 
   def set_form_variables
-    if params[:workshop_id]
+    @workshop_log.gallery_images.build
+
+    if params[:workshop_id].present?
       @workshop = Workshop.where(id: params[:workshop_id]).last
-    elsif params[:windows_type_id]
+    elsif params[:windows_type_id].present?
       @workshop = Workshop.new(windows_type_id: params[:windows_type_id])
     else
       @workshop = Workshop.new
     end
 
-    @workshops = Workshop.published.or(Workshop.where(id: @workshop_log.workshop_id))
-                         .order(title: :asc)
+    workshops = if current_user.super_user?
+                  Workshop.all
+                else
+                  Workshop.published
+                end
+    @workshops = workshops.or(Workshop.where(id: @workshop_log.workshop_id))
+                          .distinct
+                          .order(title: :asc)
 
     # Build one blank quote if none exists
     @workshop_log.quotable_item_quotes.each do |qiq|
@@ -153,13 +161,11 @@ class WorkshopLogsController < ApplicationController
       qiq.quotable = @workshop_log
     end
 
-    # Pre-build a file upload for the form
-    @workshop_log.media_files.build if @workshop_log.media_files.empty?
-
     # @sectors = Sector.published.map{ |si| [ si.id, si.name ] }
     # @files = MediaFile.where(["workshop_log_id = ?", @workshop_log.id])
 
-    @windows_type_id = params[:windows_type_id].presence || @workshop.windows_type_id || 3
+    @windows_type_id = params[:windows_type_id].presence || @workshop.windows_type_id ||
+      WindowsType.where(short_name: "COMBINED")
     form = FormBuilder.where(windows_type_id: @windows_type_id)
                       .first&.forms.first # because there's only one form per form_builder
     if form
@@ -168,10 +174,11 @@ class WorkshopLogsController < ApplicationController
       end
     end
 
-    @title = params[:windows_type_id] == '3' ? :log_title : :title
-    @agency_title = params[:windows_type_id] == '3' ? :log_title : :name
-
-    @agencies = current_user.projects.uniq
+    @agencies =
+      Project.where(id: current_user.projects.select(:id))
+             .or(Project.where(id: @workshop_log.project_id))
+             .distinct
+             .order(:name)
     agency = params[:agency_id].present? ? Project.where(id: params[:agency_id]).last : @agencies.first
     @agency_id = agency.id if agency
   end
@@ -201,8 +208,11 @@ class WorkshopLogsController < ApplicationController
       quotable_item_quotes_attributes: [
         :id, :quotable_type, :quotable_id, :_destroy,
         quote_attributes: [:id, :quote, :age, :workshop_id, :_destroy]],
-      media_files_attributes: [:id, :file, :_destroy],
+      all_quotable_item_quotes_attributes: [
+        :id, :quotable_type, :quotable_id, :_destroy,
+        quote_attributes: [:id, :quote, :age, :workshop_id, :_destroy]],
       report_form_field_answers_attributes: [:id, :form_field_id, :answer_option_id,
-                                             :answer, :report_id, :_destroy])
+                                             :answer, :report_id, :_destroy],
+      gallery_images_attributes: [:id, :file, :_destroy])
   end
 end

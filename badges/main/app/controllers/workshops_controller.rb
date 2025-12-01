@@ -7,13 +7,12 @@ class WorkshopsController < ApplicationController
     @sort = params[:sort] # search_service.default_sort
 
     @workshops = search_service.workshops
-                               .includes(:categories, :sectors, :windows_type, :user, :images,
-                                         :workshop_age_ranges, :bookmarks)
+                               .includes(:categories, :sectors, :windows_type, :user, :images, :bookmarks)
                                .paginate(page: params[:page], per_page: params[:per_page] || 50)
 
     @workshops_count = search_service.workshops.size
 
-    @category_metadata = Metadatum.published.includes(:categories).decorate
+    @category_types = CategoryType.includes(:categories).published.decorate
     @sectors = Sector.published
     @windows_types = WindowsType.all
 
@@ -40,7 +39,7 @@ class WorkshopsController < ApplicationController
     @total_ongoing    = logs.reduce(0) { |sum, l| sum += l.num_ongoing }
     @total_first_time = logs.reduce(0) { |sum, l| sum += l.num_first_time }
 
-    combined_windows_type = WindowsType.where("name LIKE ?", "%COMBINED (FAMILY)%").first
+    combined_windows_type = WindowsType.where(short_name: "COMBINED").first
     @combined_workshop_logs = current_user.project_workshop_logs(
       @report.date, combined_windows_type, current_user.agency_id
     )
@@ -88,6 +87,15 @@ class WorkshopsController < ApplicationController
 
   def update
     @workshop = Workshop.find(params[:id])
+
+    # Convert checkbox values into categorizable_items updates
+    selected_category_ids = Array(params[:workshop][:category_ids]).reject(&:blank?).map(&:to_i)
+    @workshop.categories = Category.where(id: selected_category_ids)
+
+    # Convert checkbox values into sectorable_items updates
+    selected_sector_ids = Array(params[:workshop][:sector_ids]).reject(&:blank?).map(&:to_i)
+    @workshop.sectors = Sector.where(id: selected_sector_ids)
+
     if @workshop.update(workshop_params)
       flash[:notice] = 'Workshop updated successfully.'
       redirect_to workshops_path
@@ -100,6 +108,14 @@ class WorkshopsController < ApplicationController
 
   def create
     @workshop = current_user.workshops.build(workshop_params)
+
+    # Convert checkbox values into categorizable_items updates
+    selected_category_ids = Array(params[:workshop][:category_ids]).reject(&:blank?).map(&:to_i)
+    @workshop.categories = Category.where(id: selected_category_ids)
+
+    # Convert checkbox values into sectorable_items updates
+    selected_sector_ids = Array(params[:workshop][:sector_ids]).reject(&:blank?).map(&:to_i)
+    @workshop.sectors = Sector.where(id: selected_sector_ids)
 
     if @workshop.save
       flash[:notice] = 'Workshop created successfully.'
@@ -139,14 +155,26 @@ class WorkshopsController < ApplicationController
   end
 
   def set_form_variables
-    @potential_series_workshops = Workshop.published.where.not(id: @workshop.id).order(:title)
-    image = @workshop.images.first || @workshop.images.build # build an image if there isn't one
+    @workshop.build_main_image if @workshop.main_image.blank?
+    @workshop.gallery_images.build
 
-    @age_ranges = AgeRange.all
-    @workshop_ideas = WorkshopIdea.order(created_at: :desc)
-                                  .map { |wi| ["#{wi.created_at.strftime("%Y-%m-%d")} - (#{wi.created_by.full_name}): #{wi.title}",
-                                               wi.id] }
+    @age_ranges = Category.includes(:category_type).where("metadata.name = 'AgeRange'").pluck(:name)
+    @potential_series_workshops = Workshop.published.where.not(id: @workshop.id).order(:title)
     @windows_types = WindowsType.all
+    @workshop_ideas = WorkshopIdea.order(created_at: :desc)
+                                  .map { |wi|
+                                    ["#{wi.created_at.strftime("%Y-%m-%d")
+                                    } - (#{wi.created_by.full_name}): #{wi.title}", wi.id] }
+    @categories_grouped =
+      Category
+        .includes(:category_type)
+        .published
+        .order(:name)
+        .group_by(&:category_type)
+        .select { |type, _| type.nil? || type.published? }
+        .sort_by { |type, _| type&.name.to_s.downcase }
+
+    @sectors = Sector.published.order(:name)
   end
 
   def workshops_per_page
@@ -185,18 +213,21 @@ class WorkshopsController < ApplicationController
       :visualization, :visualization_spanish,
       :warm_up, :warm_up_spanish,
 
+      category_ids: [],
+      sector_ids: [],
+      main_image_attributes: [:id, :file, :_destroy],
+      gallery_images_attributes: [:id, :file, :_destroy],
       workshop_series_children_attributes: [:id, :workshop_child_id, :workshop_parent_id, :theme_name,
                                             :series_description, :series_description_spanish,
                                             :series_order, :_destroy],
-      images_attributes: %i[file owner_id owner_type id _destroy]
     )
   end
 
   def load_sortable_fields
-    @sortable_fields = WindowsType.where('name NOT LIKE ?', '%COMBINED%')
+    @sortable_fields = WindowsType.where(short_name: "COMBINED")
   end
 
   def load_metadata
-    @metadata = Metadatum.published.includes(:categories).decorate
+    @metadata = CategoryType.includes(:categories).published.decorate
   end
 end

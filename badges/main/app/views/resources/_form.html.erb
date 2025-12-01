@@ -86,35 +86,26 @@
   </div>
 
   <!-- Third Row -->
-  <div class="uploads-row flex flex-wrap gap-4 mb-4">
-    <!-- Main Image -->
-    <div class="flex-1 min-w-[200px] flex flex-col gap-2">
-      <%= f.simple_fields_for :images, f.object.images.first || f.object.images.build do |mi| %>
-        <div class="nested-fields flex flex-col gap-2">
-          <div class="mb-4">
-            <div class="flex flex-col items-start gap-4" style="flex: 0 0 25%;">
-              <%= render 'shared/form_image_field', f: mi, resource: mi.object, field_name: :file,
-                         label: "Main image" %>
-            </div>
-          </div>
-        </div>
-      <% end %>
-    </div>
+  <%= render "shared/form_image_fields", f: f, include_main_image: true %>
 
-    <!-- Attachment -->
-    <div class="flex-1 min-w-[200px] flex flex-col gap-2">
-      <%= f.simple_fields_for :attachments, f.object.main_attachment || f.object.attachments.build do |att| %>
-        <div class="nested-fields flex flex-col gap-2">
-          <div class="mb-4">
-            <div class="flex flex-col items-center gap-4" style="flex: 0 0 25%;">
-              <%= render 'shared/form_image_field', f: att, resource: att.object,
-                         field_name: :file, label: "Attachment" %>
-            </div>
-          </div>
-        </div>
-      <% end %>
+  <% if @resource.attachments.any? %>
+    <div class="bg-red-200 p-3 pb-9">
+      <h3 class="text-lg font-medium mt-6 mb-2">Attachments (need to reattach)</h3>
+      <ul class="list-disc pl-5">
+        <% @resource.attachments.each do |attachment| %>
+          <li>
+            <%= attachment.file_file_name %>
+            <%# if attachment&.persisted? %>
+              <%#= link_to attachment.file_file_name,
+                          url_for(attachment.file), class: "hover:underline" %>
+            <%# else %>
+              <%#= attachment.file_file_name %>
+            <%# end %>
+          </li>
+        <% end %>
+      </ul>
     </div>
-  </div>
+  <% end %>
 
 
 
@@ -127,19 +118,3 @@
                  rounded-lg bg-blue-600 text-white text-sm font-medium" %>
   </div>
 <% end %>
-
-<script>
-    document.addEventListener("turbo:load", () => {
-        document.querySelectorAll('input[type="file"]').forEach(input => {
-            input.addEventListener('change', () => {
-                const label = input.closest('label'); // find parent label
-                if (!label) return;
-
-                const span = label.querySelector('span');
-                if (span) {
-                    span.textContent = input.files.length > 0 ? input.files[0].name : "Choose new file";
-                }
-            });
-        });
-    });
-</script>

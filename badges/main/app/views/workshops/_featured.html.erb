@@ -6,12 +6,12 @@
         <div class="workshop-box">
           <div class="content-img">
             <%= link_to workshop_path(workshop) do %>
-              <figure class="portrait-img" style="background-image: url(<%= workshop.thumbnail_image %>)"></figure>
+              <figure class="portrait-img" style="background-image: url(<%= workshop.main_image %>)"></figure>
             <% end %>
           </div>
           <div class="inner-content">
             <h3><%= workshop.title %></h3>
-            <span><%= workshop.windows_type.label if workshop.windows_type %></span>
+            <span><%= workshop.windows_type.short_name if workshop.windows_type %></span>
             |
             <span><%= workshop.date if workshop.date %></span>
           </div>

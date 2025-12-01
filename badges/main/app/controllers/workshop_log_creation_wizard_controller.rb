@@ -7,7 +7,7 @@ class WorkshopLogCreationWizardController < ApplicationController
   def show
     @user = current_user
     @agencies = current_user.projects
-    windows_type_id = params[:windows_type_id] || current_user.windows_types.first.id
+    windows_type_id = params[:windows_type_id] || WindowsType.where(short_name: "COMBINED")
     @windows_type = WindowsType.find(windows_type_id) if windows_type_id
     send(step)
     render_wizard
@@ -108,12 +108,6 @@ class WorkshopLogCreationWizardController < ApplicationController
     end
   end
 
-  def build_workshop_age_ranges
-    @workshop.windows_type.age_ranges.each do |range|
-      @workshop.workshop_age_ranges.build(age_range: range)
-    end
-  end
-
   def build_report_form_field_answers
     @workshop.workshop_log_fields.each do |field|
       if field.multiple_choice?
@@ -168,8 +162,7 @@ class WorkshopLogCreationWizardController < ApplicationController
                                 ],
       #sectorable_items_attributes: [:_create, :sector_id, :is_leader],
       #sectors_attributes: [:_create, :name],
-      workshop_age_ranges_attributes: [:age_range_id, :workshop_id, :_create],
-      quotes_attributes: [:quote, :age]
+      quotes_attributes: [:quote, :age],
     )
   end
 
