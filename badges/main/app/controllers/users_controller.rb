@@ -91,12 +91,26 @@ class UsersController < ApplicationController
         last_name: @user.last_name,
         primary_email_address: @user.email,
         phone_number: @user.phone,
+        phone_number_2: @user.phone2,
+        phone_number_3: @user.phone3,
+        best_time_to_call: @user.best_time_to_call,
+        date_of_birth: @user.birthday,
         street_address: @user.address,
         city: @user.city,
         state: @user.state,
         zip: @user.zip,
         created_by: current_user,
-        updated_by: current_user
+        updated_by: current_user,
+        notes: @user.notes,
+        # comment: @user.comment,
+        # t.string "address2"
+        # t.integer "agency_id"
+        # t.string "city2"
+        # t.boolean "inactive", default: false
+        # t.integer "primary_address"
+        # t.string "state2"
+        # t.string "subscribecode"
+        # t.string "zip2"
       )
       if @facilitator.save
         redirect_to @facilitator, notice: "Facilitator was successfully created for this user." and return
@@ -113,6 +127,8 @@ class UsersController < ApplicationController
   end
 
   def set_form_variables
+    @facilitator = @user.facilitator ||
+      Facilitator.where(id: params[:facilitator_id]).first if params[:facilitator_id].present?
     @user.project_users.first || @user.project_users.build
     projects = if current_user.super_user?
                  Project.active
@@ -139,7 +155,7 @@ class UsersController < ApplicationController
       :agency_id, :facilitator_id, :created_by_id, :updated_by_id,
       :confirmed, :inactive, :super_user, :legacy, :legacy_id,
       avatar_image_attributes: [:id, :file, :_destroy],
-      project_users_attributes: [:id, :project_id, :position, :inactive, :_destroy]
+      project_users_attributes: [:id, :project_id, :position, :title, :inactive, :_destroy]
     )
   end
 end

@@ -4,6 +4,7 @@ class Project < ApplicationRecord
   belongs_to :location, optional: true # TODO - remove Location if unused
   belongs_to :windows_type, optional: true
   has_many :addresses, as: :addressable, dependent: :destroy
+  has_many :bookmarks, as: :bookmarkable, dependent: :destroy
   has_many :project_users, dependent: :restrict_with_error
   has_many :users, through: :project_users
   has_many :reports, through: :users
@@ -21,6 +22,8 @@ class Project < ApplicationRecord
   # Nested attributes
   accepts_nested_attributes_for :logo_image, allow_destroy: true, reject_if: :all_blank
   accepts_nested_attributes_for :addresses, allow_destroy: true, reject_if: :all_blank
+  accepts_nested_attributes_for :sectorable_items, allow_destroy: true, reject_if: :all_blank
+  accepts_nested_attributes_for :project_users, allow_destroy: true, reject_if: :all_blank
 
   scope :active, -> { where(inactive: false) }
 

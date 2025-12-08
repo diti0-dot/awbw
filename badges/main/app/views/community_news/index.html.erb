@@ -5,7 +5,7 @@
       <div class="w-full">
         <div class="flex items-start justify-between mb-6">
           <div class="pr-6">
-            <h2 class="text-2xl font-semibold mb-2">Community News (<%= @community_news_count %>)</h2>
+            <h2 class="text-2xl font-semibold mb-2">Community news (<%= @community_news_count %>)</h2>
           </div>
           <div class="text-right text-end">
             <% if current_user.super_user? %>
@@ -52,7 +52,7 @@
 
                 <!-- TITLE + BADGES -->
                 <span class="inline-flex items-center gap-2">
-                  <%= link_to title_with_badges(news, admin: current_user.super_user?).html_safe,
+                  <%= link_to title_with_badges(news, show_hidden_badge: current_user.super_user?).html_safe,
                               community_news_path(news),
                               class: "font-bold hover:text-indigo-800 hover:underline" %>
                 </span>
