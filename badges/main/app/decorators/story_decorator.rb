@@ -1,8 +1,12 @@
-class StoryDecorator < Draper::Decorator
-  delegate_all
+class StoryDecorator < ApplicationDecorator
+  include ::Linkable
 
-  def description
-    body.truncate(50)
+  def detail(length: 50)
+    body&.truncate(length)
+  end
+
+  def external_url
+    object.website_url
   end
 
   def inactive?
@@ -11,15 +15,5 @@ class StoryDecorator < Draper::Decorator
 
   def workshop_title
     workshop&.title || external_workshop_title
-  end
-
-  def main_image_url
-    if main_image&.file&.attached?
-      Rails.application.routes.url_helpers.url_for(main_image.file)
-    elsif gallery_images.first&.file&.attached?
-      Rails.application.routes.url_helpers.url_for(gallery_images.first.file)
-    else
-      ActionController::Base.helpers.asset_path("theme_default.png")
-    end
   end
 end

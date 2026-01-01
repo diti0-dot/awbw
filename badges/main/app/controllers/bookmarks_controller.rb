@@ -3,11 +3,12 @@ class BookmarksController < ApplicationController
 
   def index
     per_page = params[:number_of_items_per_page] || 25
-    bookmarks = Bookmark.search(params)
-    bookmarks = bookmarks.sorted(params[:sort])
+    unfiltered = Bookmark.all
+    filtered = unfiltered.search(params)
+    filtered = filtered.sorted(params[:sort])
 
-    @bookmarks = bookmarks.paginate(page: params[:page], per_page: per_page)
-    @bookmarks_count = bookmarks.length
+    @bookmarks = filtered.paginate(page: params[:page], per_page: per_page).decorate
+    @bookmarks_count = unfiltered.length
     @windows_types_array = WindowsType::TYPES
     set_index_variables
     respond_to do |format|
@@ -40,7 +41,6 @@ class BookmarksController < ApplicationController
   def create
     @bookmark = current_user.bookmarks.find_or_create_by(bookmark_params)
     @bookmarkable = @bookmark.bookmarkable
-    @bookmarkable.update(led_count: @bookmarkable.led_count + 1) if @bookmarkable.has_attribute?(:led_count)
     respond_to do |format|
       format.html {
         redirect_to authenticated_root_path, notice: "#{@bookmark.bookmarkable_type} added to your bookmarks."
@@ -63,7 +63,6 @@ class BookmarksController < ApplicationController
     if @bookmark
       @bookmark.destroy
       @bookmarkable = @bookmark.bookmarkable
-      @bookmarkable.update(led_count: @bookmarkable.led_count - 1) if @bookmarkable.has_attribute?(:led_count)
       respond_to do |format|
         format.html {
           redirect_to authenticated_root_path, notice: "Bookmark has been deleted."
@@ -90,14 +89,16 @@ class BookmarksController < ApplicationController
     # Resolve polymorphic objects + sort desc
     @bookmark_counts = grouped_counts.group_by(&:first).flat_map do |type, rows|
       ids = rows.map { |_, id, _| id }
-      found = type.constantize.where(id: ids).index_by(&:id)
+      found = type.constantize.where(id: ids).decorate.index_by(&:id)
 
       rows.filter_map do |(_, id, count)|
-        [found[id], count] if found[id]
+        [ found[id], count ] if found[id]
       end
     end.sort_by { |_, count| -count }
 
     @windows_types_array = WindowsType::TYPES
+
+    @bookmarkable_types = Bookmark::BOOKMARKABLE_MODELS.map { |type| [ type, type ] }
 
     @workshops = Workshop.where("led_count > 0").order(led_count: :desc)
   end
@@ -108,8 +109,7 @@ class BookmarksController < ApplicationController
     @sortable_fields = WindowsType.where("name NOT LIKE ?", "%COMBINED%")
     @windows_types_array = WindowsType::TYPES
     bookmarkable_types = Bookmark::BOOKMARKABLE_MODELS
-    @bookmarkable_types = bookmarkable_types.map{ |type| [ type, type ] }
-
+    @bookmarkable_types = bookmarkable_types.map { |type| [ type, type ] }
   end
 
   def load_workshop_data

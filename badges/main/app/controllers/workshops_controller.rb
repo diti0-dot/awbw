@@ -1,24 +1,24 @@
 # frozen_string_literal: true
 
 class WorkshopsController < ApplicationController
-
   def index
-    search_service = WorkshopSearchService.new(params,
-                                               super_user: current_user.super_user?).call
-    @sort = search_service.sort
-
-    @workshops = search_service.workshops
-                               .includes(:categories, :sectors, :windows_type, :user, :images, :bookmarks)
-                               .paginate(page: params[:page], per_page: params[:per_page] || 50)
-
-    @workshops_count = search_service.workshops.size
-
     @category_types = CategoryType.includes(:categories).published.decorate
     @sectors = Sector.published
     @windows_types = WindowsType.all
+    if turbo_frame_request?
+      search_service = WorkshopSearchService.new(params,
+        super_user: current_user.super_user?).call
+      @sort = search_service.sort
 
-    respond_to do |format|
-      format.html
+      @workshops = search_service.workshops
+        .includes(:categories, :sectors, :windows_type, :user, :images, :bookmarks)
+        .paginate(page: params[:page], per_page: params[:per_page] || 50)
+
+      @workshops_count = search_service.workshops.size
+
+      render :workshop_results
+    else
+      render :index
     end
   end
 
@@ -84,6 +84,7 @@ class WorkshopsController < ApplicationController
 
   def show
     set_show
+    @workshop.increment_view_count!(session: session, request: request)
   end
 
   def update
@@ -98,11 +99,11 @@ class WorkshopsController < ApplicationController
     @workshop.sectors = Sector.where(id: selected_sector_ids)
 
     if @workshop.update(workshop_params)
-      flash[:notice] = 'Workshop updated successfully.'
+      flash[:notice] = "Workshop updated successfully."
       redirect_to workshops_path
     else
       set_form_variables
-      flash[:alert] = 'Unable to update the workshop.'
+      flash[:alert] = "Unable to update the workshop."
       render :edit
     end
   end
@@ -119,11 +120,11 @@ class WorkshopsController < ApplicationController
     @workshop.sectors = Sector.where(id: selected_sector_ids)
 
     if @workshop.save
-      flash[:notice] = 'Workshop created successfully.'
+      flash[:notice] = "Workshop created successfully."
       redirect_to workshops_path(sort: "created")
     else
       set_form_variables
-      flash.now[:alert] = 'Unable to save the workshop.'
+      flash.now[:alert] = "Unable to save the workshop."
       render :new
     end
   end
@@ -150,22 +151,22 @@ class WorkshopsController < ApplicationController
   def set_show
     @workshop = Workshop.find(params[:id]).decorate
     @quotes = Quote.where(workshop_id: @workshop.id).active
-    @leader_spotlights = @workshop.resources.published.leader_spotlights
+    @leader_spotlights = @workshop.associated_resources.leader_spotlights.where(inactive: false)
     @workshop_variations = @workshop.workshop_variations.active
     @sectors = @workshop.sectorable_items.published.map { |item| item.sector if item.sector.published }.compact if @workshop.sectorable_items.any?
   end
 
   def set_form_variables
-    @workshop.build_main_image if @workshop.main_image.blank?
-    @workshop.gallery_images.build
+    @workshop.build_primary_asset if @workshop.primary_asset.blank?
+    @workshop.gallery_assets.build
 
     @age_ranges = Category.includes(:category_type).where("metadata.name = 'AgeRange'").pluck(:name)
     @potential_series_workshops = Workshop.published.where.not(id: @workshop.id).order(:title)
     @windows_types = WindowsType.all
     @workshop_ideas = WorkshopIdea.order(created_at: :desc)
                                   .map { |wi|
-                                    ["#{wi.created_at.strftime("%Y-%m-%d")
-                                    } - (#{wi.created_by.full_name}): #{wi.title}", wi.id] }
+                                    [ "#{wi.created_at.strftime("%Y-%m-%d")
+                                    } - (#{wi.created_by.full_name}): #{wi.title}", wi.id ] }
     @categories_grouped =
       Category
         .includes(:category_type)
@@ -183,7 +184,7 @@ class WorkshopsController < ApplicationController
   end
 
   def view_all_workshops?
-    params[:search][:view_all] == '1'
+    params[:search][:view_all] == "1"
   end
 
   def workshop_params
@@ -216,11 +217,11 @@ class WorkshopsController < ApplicationController
 
       category_ids: [],
       sector_ids: [],
-      main_image_attributes: [:id, :file, :_destroy],
-      gallery_images_attributes: [:id, :file, :_destroy],
-      workshop_series_children_attributes: [:id, :workshop_child_id, :workshop_parent_id, :theme_name,
+      primary_asset_attributes: [ :id, :file, :_destroy ],
+      gallery_assets_attributes: [ :id, :file, :_destroy ],
+      workshop_series_children_attributes: [ :id, :workshop_child_id, :workshop_parent_id, :theme_name,
                                             :series_description, :series_description_spanish,
-                                            :series_order, :_destroy],
+                                            :series_order, :_destroy ],
     )
   end
 

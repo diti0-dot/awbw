@@ -26,7 +26,7 @@ RSpec.describe Workshop do
     it { should have_many(:age_ranges) }
 
     # Nested Attributes
-    it { should accept_nested_attributes_for(:gallery_images).allow_destroy(true) }
+    it { should accept_nested_attributes_for(:gallery_assets).allow_destroy(true) }
     # it { should accept_nested_attributes_for(:category_ids) } # assigns them in the controller
     # it { should accept_nested_attributes_for(:sector_ids) } # assigns them in the controller
     it { should accept_nested_attributes_for(:quotes) }
@@ -62,4 +62,3 @@ RSpec.describe Workshop do
 
   # Add tests for scopes, methods like #rating, #log_count, SearchCop etc.
 end
-

@@ -19,12 +19,14 @@
     px-4 sm:px-0">
   <div id="workshop-<%= workshop.id %>-anchor" style="position: relative; top: -200px;"></div>
 
-  <!-- 1️⃣ Image -->
-  <div class="flex-shrink-0 w-full sm:w-32 h-32 sm:h-24 bg-gray-100 rounded overflow-hidden">
-    <%= link_to workshop_path(workshop) do %>
-      <img class="object-cover w-full h-full" src="<%= workshop.main_image_url %>">
-    <% end %>
-  </div>
+  <!-- 1️⃣ Media -->
+  <%= render "assets/display_image",
+             resource: workshop,
+             width: 32, height: 24,
+             variant: :index,
+             link_to_object: true,
+             file: workshop.display_image %>
+
 
   <!-- Content (bookmark + title+ + description) -->
   <div class="flex flex-col sm:flex-row gap-4 flex-1">
@@ -43,8 +45,9 @@
         <!-- Title with badges (single column, bookmark stays separate) -->
         <%= link_to link_route,
                     class: "hover:underline block",
-                    data: { turbo: false } do %>
-          <%= title_with_badges(workshop, show_hidden_badge: current_user.super_user?,
+                    data: { turbo_prefetch: false, turbo: false } do %>
+          <%= title_with_badges(workshop,
+                                show_hidden_badge: current_user.super_user?,
                                 display_windows_type: true).html_safe %>
         <% end %>
 
@@ -65,7 +68,13 @@
         <!-- Bookmarked count -->
         <%= tag.div id: dom_id(workshop, :bookmark_count),
                     class: "text-sm text-gray-600 leading-tight" do %>
-          Bookmarked: <%= workshop.led_count %> <%= "time".pluralize(workshop.led_count) %>
+          Bookmarked: <%= workshop.bookmarks_count %> <%= "time".pluralize(workshop.bookmarks_count.to_i) %>
+        <% end %>
+
+        <!-- Led count -->
+        <%= tag.div id: dom_id(workshop, :led_count),
+                    class: "text-sm text-gray-600 leading-tight" do %>
+          Led: <%= workshop.led_count %> <%= "time".pluralize(workshop.led_count.to_i) %>
         <% end %>
 
         <!-- Age ranges -->

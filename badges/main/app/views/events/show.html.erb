@@ -2,7 +2,7 @@
   <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
 
     <!-- Outer Soft Container (Events = blue theme) -->
-    <div class="bg-blue-50 border border-gray-200 rounded-xl shadow-md hover:shadow-lg transition-shadow duration-200 p-6">
+    <div class="<%= DomainTheme.bg_class_for(:events) %> border border-gray-200 rounded-xl shadow-md hover:shadow-lg transition-shadow duration-200 p-6">
 
       <!-- Top Right Actions -->
       <div class="text-right mb-4 space-x-2">
@@ -78,7 +78,7 @@
                 <div>
                   <p class="font-semibold text-gray-700">Registration Close Date</p>
                   <p class="text-gray-900">
-                    <%= @event.registration_close_date&.strftime("%B %d, %Y %l:%M %P") || "—" %>
+                    <%= @event.registration_close_date&.strftime("%B %-d, %Y %l:%M %P") || "—" %>
                   </p>
                 </div>
               <% end %>
@@ -88,36 +88,15 @@
 
           <!-- Right Column -->
           <div class="md:col-span-2 space-y-6">
-
-            <!-- Main Image Hero Image -->
-            <% if @event.main_image&.file&.attached? %>
-              <div>
-                <%= image_tag @event.main_image.file,
-                              class: "w-full rounded-lg shadow-sm border border-gray-200",
-                              alt: @event.main_image.file.blob.filename.to_s %>
-              </div>
-            <% end %>
-
-            <!-- Gallery Image Thumbnails -->
-            <% if @event.gallery_images.any? { |img| img.persisted? && img.file.attached? } %>
-              <div class="flex flex-wrap justify-start gap-3">
-                <% @event.gallery_images.each_with_index do |gallery_image, idx| %>
-                  <% if gallery_image.file&.attached? %>
-                    <%= image_tag url_for(gallery_image.file),
-                                  alt: "Gallery Image #{idx + 1}: #{gallery_image.file.blob.filename.to_s}",
-                                  class: "w-24 h-24 object-cover rounded border shadow-sm" %>
-                  <% end %>
-                <% end %>
-              </div>
-            <% end %>
-
+            <!-- Assets -->
+            <%= render "assets/display_assets", resource: @event %>
           </div>
         </div>
 
         <!-- FULL-WIDTH DESCRIPTION -->
         <div class="mt-6 md:col-span-5">
           <p class="text-gray-900 leading-relaxed">
-            <%= @event.description.presence || "—" %>
+            <%= @event.detail.presence || "—" %>
           </p>
         </div>
 

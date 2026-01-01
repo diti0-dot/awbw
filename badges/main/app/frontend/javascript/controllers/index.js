@@ -15,6 +15,9 @@ application.register("dropdown", DropdownController);
 import FilePreviewController from "./file_preview_controller"
 application.register("file-preview", FilePreviewController)
 
+import PrintController from "./print_controller"
+application.register("print", PrintController)
+
 import SearchBoxController from "./search_box_controller"
 application.register("search-box", SearchBoxController)
 
@@ -29,3 +32,6 @@ application.register("tabs", TabsController)
 
 import TimeframeController from "./timeframe_controller"
 application.register("timeframe", TimeframeController)
+
+import RhinoSourceController from "./rhino_source_controller"
+application.register("rhino-source", RhinoSourceController)
