@@ -50,6 +50,7 @@ RSpec.describe "Facilitators can register for an event" do
         end
 
         within("#card_event_#{@event.id}") do
+        
           expect(page).to have_css("span.text-xs.bg-green-100.text-green-700.px-2.py-0\\.5.rounded-full",
                                    text: "Registered")
           expect(page).to have_button("De-register")
