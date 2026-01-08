@@ -17,6 +17,7 @@ class Story < ApplicationRecord
           as: :owner, class_name: "PrimaryAsset", dependent: :destroy
   has_many :gallery_assets, -> { where(type: "GalleryAsset") },
            as: :owner, class_name: "GalleryAsset", dependent: :destroy
+  has_many :assets, as: :owner, dependent: :destroy
   # has_many through
   has_many :categories, through: :categorizable_items
   has_many :sectors, through: :sectorable_items
@@ -25,6 +26,7 @@ class Story < ApplicationRecord
   validates :windows_type_id, presence: true
   validates :created_by_id, presence: true
   validates :updated_by_id, presence: true
+  validates :title, presence: true, uniqueness: true
   validates :body, presence: true
 
   # Nested attributes

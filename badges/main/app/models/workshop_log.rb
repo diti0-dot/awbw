@@ -1,5 +1,6 @@
 class WorkshopLog < Report
   belongs_to :workshop
+  has_many :notifications, as: :noticeable, dependent: :destroy
 
   # Validations
   validates :date, presence: true
@@ -125,7 +126,7 @@ class WorkshopLog < Report
   end
 
   def date_label
-   date ? date.strftime("%m/%d/%Y") : created_at.strftime("%m/%d/%Y")
+    date ? date.strftime("%m/%d/%Y") : created_at.strftime("%m/%d/%Y")
   end
 
   def workshop_quotes

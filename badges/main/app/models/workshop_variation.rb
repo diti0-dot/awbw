@@ -4,6 +4,7 @@ class WorkshopVariation < ApplicationRecord
   belongs_to :workshop
   belongs_to :created_by, class_name: "User", optional: true
   has_many :bookmarks, as: :bookmarkable, dependent: :destroy
+  has_many :notifications, as: :noticeable, dependent: :destroy
   # Asset associations
   has_many :images, as: :owner, dependent: :destroy
   has_one :primary_asset, -> { where(type: "PrimaryAsset") },
@@ -12,6 +13,7 @@ class WorkshopVariation < ApplicationRecord
            as: :owner, class_name: "GalleryAsset", dependent: :destroy
   has_many :rich_text_assets, -> { where(type: "RichTextAsset") },
          as: :owner, class_name: "RichTextAsset", dependent: :destroy
+  has_many :assets, as: :owner, dependent: :destroy
 
   validates :name, presence: true, uniqueness: { scope: :workshop_id, case_sensitive: false }
 
