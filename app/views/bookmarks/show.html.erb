@@ -1,0 +1,4 @@
+<%= render "bookmarks/personal_row",
+           bookmark: @bookmark,
+           breadcrumb: "My Bookmarks",
+           link_route: polymorphic_path(@bookmark.bookmarkable) %>

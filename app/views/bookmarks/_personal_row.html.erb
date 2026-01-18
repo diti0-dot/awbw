@@ -1,0 +1,91 @@
+<% bookmarkable = bookmark.bookmarkable.decorate %>
+
+<div
+  id="bookmarkable-<%= bookmarkable.id %>"
+  class="
+    flex flex-col md:flex-row <%= "admin-only bg-blue-100" if bookmarkable.inactive? %> border-b
+    border-gray-200 list-group-item-custom gap-4 py-4 mb-0">
+  <div
+    id="bookmarkable-<%= bookmarkable.id %>-anchor"
+    style="position: relative; top: -200px;"></div>
+  <!-- 1️⃣ Bookmark -->
+  <%= render "bookmarks/editable_bookmark_icon", resource: bookmarkable.object %>
+
+  <!-- 1️⃣ Media -->
+  <div class="flex flex-col items-center w-12">
+    <!-- Assets -->
+    <%= render "assets/display_image",
+               resource: bookmarkable,
+               width: 12, height: 8,
+               link_to_object: true,
+               file: bookmark.decorate.display_image %>
+
+    <!-- Type -->
+    <div class="mt-1 text-xs text-gray-600 font-medium text-center">
+      <%= bookmarkable.object.class.name.titleize.upcase %>
+    </div>
+  </div>
+
+
+  <!-- 2️⃣ Title / author / metadata -->
+  <div class="flex flex-col gap-1 min-w-[60ch] max-w-[60ch] break-words">
+    <h3 class="text-lg font-bold text-gray-800 flex items-center gap-2">
+      <% if bookmarkable.respond_to?(:type) %>
+        <% type_name = " (#{bookmarkable.type})" %>
+      <% elsif bookmarkable.respond_to?(:windows_type) %>
+        <% type_name = " (#{bookmarkable.windows_type.short_name})" if bookmarkable.windows_type %>
+      <% else %>
+        <% type_name = "" %>
+      <% end %>
+
+      <%= link_to "#{bookmarkable.title}#{ type_name }#{" [HIDDEN]" if bookmarkable.inactive?}",
+                  polymorphic_path(bookmarkable),
+                  class: "hover:underline",
+                  data: { turbo: false, } %>
+    </h3>
+    <div class="text-sm text-gray-600">
+      You bookmarked on
+      <%= bookmark.created_at.strftime("%B %d, %Y") %>
+    </div>
+    <div class="text-sm text-gray-600">
+      Bookmarked by community
+      <%= bookmark.bookmarkable.bookmarks_count %> times
+    </div>
+  </div>
+
+ <!-- 3️⃣ Description -->
+ <div class="flex-1 text-sm text-gray-700">
+   <div class="text-sm text-gray-600">
+     Created by:
+     <% if bookmarkable.respond_to?(:user) && bookmarkable.user %>
+       <%= link_to bookmarkable.user.full_name,
+                   generate_facilitator_user_path(bookmarkable.user),
+                   class: "hover:underline",
+                   data: { turbo: false, } %>
+     <% elsif bookmark.bookmarkable_type == "Workshop" %>
+       <%= bookmarkable.full_name.present? ? bookmarkable.full_name : "Facilitator" %>
+     <% elsif bookmarkable.respond_to?(:created_by) && bookmarkable.created_by %>
+       <%= link_to bookmarkable.object.created_by.full_name,
+                   generate_facilitator_user_path(bookmarkable.created_by),
+                   class: "hover:underline",
+                   data: { turbo: false, } %>
+     <% else %>
+       User
+     <% end %>
+   </div>
+
+   <div class="text-sm text-gray-600">
+    <span>
+      Date:
+      <% if bookmark.bookmarkable_type == "Workshop" || bookmark.bookmarkable_type == "Event" %>
+        <%= bookmarkable.date %>
+      <% else %>
+        <%= bookmarkable.created_at.strftime("%B %d, %Y") %>
+      <% end %>
+      <% if bookmark.bookmarkable_type == "Workshop" && bookmarkable.age_ranges.any? %>
+        <br>Age ranges: <%= bookmarkable.age_ranges.pluck(:name).to_sentence %>
+      <% end %>
+    </span>
+   </div>
+ </div>
+</div>

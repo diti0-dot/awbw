@@ -1,0 +1,117 @@
+<%# ------------------------------------------
+    Shared image field partial
+    Supports:
+    - Pattern B wrapper model (Media + file)
+    - Parent has_one_attached
+    - Parent has_many_attached
+    - Media gallery display
+    ------------------------------------------ %>
+
+<% f ||= nil %>
+<% raise "form_image_field requires f:" if f.nil? %>
+
+<% asset ||= f.object %>
+<% field_name ||= :file %>
+<% label ||= field_name.to_s.titleize %>
+<% hint ||= nil %>
+<% rounded ||= false %>
+<% multiple ||= false %>
+<% file ||= nil %>
+<% use_profile_placeholder ||= false %>
+<% show_file_field = show_file_field.to_s.present? ? show_file_field : true %>
+<% show_existing   = show_existing.to_s.present? ? show_existing : true %>
+<% file =
+    if file.present?
+      file
+    elsif asset.respond_to?(field_name)
+      asset.public_send(field_name)
+    end
+%>
+<% blob        = file&.attached? ? file.blob : nil %>
+<% is_image    = blob&.image? %>
+<% is_pdf      = blob&.content_type == "application/pdf" %>
+
+<div data-controller="file-preview" class="text-center">
+
+  <%= f.label label, class: "block font-medium gap-1 text-gray-700 string required" %>
+
+  <% if hint %>
+    <p class="text-gray-500 text-sm"><%= hint.html_safe %></p>
+  <% end %>
+
+  <div class="flex flex-col items-center gap-2">
+
+    <% if show_existing %>
+
+      <%# ---------- IMAGE ---------- %>
+      <% if is_image && action_name != "create" %>
+        <%= image_tag file,
+                      alt: "#{label}",
+                      data: { file_preview_target: "preview" },
+                      class: "w-32 h-32 object-cover border border-gray-300 shadow-sm #{rounded ? 'rounded-full' : ''}" %>
+
+        <%# ---------- PDF PREVIEW ---------- %>
+      <% elsif is_pdf && file.previewable? %>
+        <%= image_tag file.preview(resize_to_limit: [300, 300]),
+                      alt: "#{label} PDF preview",
+                      data: { file_preview_target: "preview" },
+                      class: "w-32 h-32 object-cover border border-gray-300 shadow-sm" %>
+
+        <%# ---------- PLACEHOLDER ---------- %>
+      <% else %>
+        <div class="relative w-32 h-32">
+          <img data-file-preview-target="preview"
+               class="hidden w-32 h-32 object-cover border border-gray-300 shadow-sm" />
+
+          <div data-file-preview-target="placeholder"
+               class="absolute inset-0 flex items-center justify-center
+                      border border-gray-300 shadow-sm bg-gray-50 text-gray-400 text-6xl">
+            <i class="fa-regular fa-image"></i>
+          </div>
+        </div>
+      <% end %>
+
+      <div data-file-preview-target="filename"
+           class="text-center text-sm text-gray-500 break-all max-w-[8rem]">
+        <%= blob && action_name != "create" ? link_to(blob.filename.to_s, url_for(file),
+                                                   class: "underline") : "No file selected" %>
+      </div>
+
+    <% end %>
+
+    <% if show_file_field %>
+      <div class="flex items-center gap-3">
+
+        <div class="relative w-28">
+          <%= f.file_field field_name,
+                           data: {
+                             file_preview_target: "input",
+                             action: "change->file-preview#update"
+                           },
+                           multiple: multiple,
+                           class: "absolute inset-0 w-full h-full opacity-0 cursor-pointer" %>
+
+          <button type="button"
+                  class="w-full py-2 px-3 border border-gray-300 rounded-lg bg-white text-sm text-gray-700 hover:bg-gray-50">
+            Choose file
+          </button>
+        </div>
+
+        <% if asset.persisted? && file&.attached? %>
+          <div class="flex items-center gap-1">
+            <%= f.check_box :_destroy,
+                            class: "h-4 w-4 appearance-none checked:bg-red-600
+                                    bg-gray-100 text-white border border-gray-300 rounded cursor-pointer
+                                    checked:border-red-600 checked:text-white" %>
+
+            <%= f.label :_destroy, "Remove", class: "text-sm cursor-pointer" %>
+          </div>
+        <% end %>
+
+      </div>
+    <% end %>
+
+  </div>
+</div>
+
+<%= f.error :file, wrap_with: { tag: :p, class: "text-red-500 text-sm mt-1" } %>

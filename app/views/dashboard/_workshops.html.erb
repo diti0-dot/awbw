@@ -1,0 +1,21 @@
+<% title ||= "Featured Workshops" %>
+
+<section class="mt-6 py-10 <%= DomainTheme.bg_class_for(:workshops) %>">
+  <div class="max-w-6xl mx-auto px-4">
+    <%= render "dashboard/dashboard_section_header",
+               title: title,
+               subtitle: "Spotlights from our curriculum" %>
+
+    <% if workshops.any? %>
+      <%= render "dashboard/workshops_carousel", workshops: workshops %>
+
+      <div class="mt-6 text-right">
+        <%= link_to "Search all workshops",
+                    workshops_path,
+                    class: "text-primary font-medium hover:underline" %>
+      </div>
+    <% else %>
+      <p class="text-gray-500">No workshops available right now.</p>
+    <% end %>
+  </div>
+</section>
