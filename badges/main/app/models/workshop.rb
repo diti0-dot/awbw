@@ -1,9 +1,9 @@
 class Workshop < ApplicationRecord
-  include TagFilterable, PrintCountable, Trendable, ViewCountable, WindowsTypeFilterable
+  include TagFilterable, Trendable, WindowsTypeFilterable
   include Rails.application.routes.url_helpers
   include ActionText::Attachable
 
-  belongs_to :windows_type
+  belongs_to :windows_type, optional: true
   belongs_to :user, optional: true
   belongs_to :workshop_idea, optional: true
 
@@ -114,7 +114,6 @@ class Workshop < ApplicationRecord
 
 
   # Scopes
-  scope :by_most_viewed, ->(limit = 10) { order(view_count: :desc).limit(limit) }
   scope :category_names, ->(names) { tag_names(:categories, names) }
   scope :sector_names,   ->(names) { tag_names(:sectors, names) }
   scope :created_by_id, ->(created_by_id) { where(user_id: created_by_id) }
@@ -225,7 +224,7 @@ class Workshop < ApplicationRecord
   end
 
   def type_name
-    "#{id} #{title} #{ " (#{windows_type.short_name})" if windows_type}"
+    "#{title} #{"(#{windows_type.short_name}) " if windows_type}##{id}"
   end
 
   def communal_label(report)
