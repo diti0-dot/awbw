@@ -26,18 +26,18 @@ checking for Random.bytes... yes
 creating Makefile
 
 current directory: /home/runner/work/awbw/awbw/vendor/bundle/ruby/4.0.0/gems/puma-6.6.1/ext/puma_http11
-make -j4 DESTDIR\= sitearchdir\=./.gem.20260125-2823-7z1rwh sitelibdir\=./.gem.20260125-2823-7z1rwh clean
+make -j4 DESTDIR\= sitearchdir\=./.gem.20260125-2225-u0qhj3 sitelibdir\=./.gem.20260125-2225-u0qhj3 clean
 
 current directory: /home/runner/work/awbw/awbw/vendor/bundle/ruby/4.0.0/gems/puma-6.6.1/ext/puma_http11
-make -j4 DESTDIR\= sitearchdir\=./.gem.20260125-2823-7z1rwh sitelibdir\=./.gem.20260125-2823-7z1rwh
+make -j4 DESTDIR\= sitearchdir\=./.gem.20260125-2225-u0qhj3 sitelibdir\=./.gem.20260125-2225-u0qhj3
 compiling http11_parser.c
 compiling mini_ssl.c
 compiling puma_http11.c
 linking shared-object puma/puma_http11.so
 
 current directory: /home/runner/work/awbw/awbw/vendor/bundle/ruby/4.0.0/gems/puma-6.6.1/ext/puma_http11
-make -j4 DESTDIR\= sitearchdir\=./.gem.20260125-2823-7z1rwh sitelibdir\=./.gem.20260125-2823-7z1rwh install
-/usr/bin/install -c -m 0755 puma_http11.so ./.gem.20260125-2823-7z1rwh/puma
+make -j4 DESTDIR\= sitearchdir\=./.gem.20260125-2225-u0qhj3 sitelibdir\=./.gem.20260125-2225-u0qhj3 install
+/usr/bin/install -c -m 0755 puma_http11.so ./.gem.20260125-2225-u0qhj3/puma
 
 current directory: /home/runner/work/awbw/awbw/vendor/bundle/ruby/4.0.0/gems/puma-6.6.1/ext/puma_http11
-make DESTDIR\= sitearchdir\=./.gem.20260125-2823-7z1rwh sitelibdir\=./.gem.20260125-2823-7z1rwh clean
+make DESTDIR\= sitearchdir\=./.gem.20260125-2225-u0qhj3 sitelibdir\=./.gem.20260125-2225-u0qhj3 clean

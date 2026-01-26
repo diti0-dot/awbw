@@ -10,16 +10,16 @@ checking for cpuid.h... yes
 creating Makefile
 
 current directory: /home/runner/work/awbw/awbw/vendor/bundle/ruby/4.0.0/gems/json-2.18.0/ext/json/ext/parser
-make -j4 DESTDIR\= sitearchdir\=./.gem.20260125-2823-nnhr9i sitelibdir\=./.gem.20260125-2823-nnhr9i clean
+make -j4 DESTDIR\= sitearchdir\=./.gem.20260125-2225-doyjaa sitelibdir\=./.gem.20260125-2225-doyjaa clean
 
 current directory: /home/runner/work/awbw/awbw/vendor/bundle/ruby/4.0.0/gems/json-2.18.0/ext/json/ext/parser
-make -j4 DESTDIR\= sitearchdir\=./.gem.20260125-2823-nnhr9i sitelibdir\=./.gem.20260125-2823-nnhr9i
+make -j4 DESTDIR\= sitearchdir\=./.gem.20260125-2225-doyjaa sitelibdir\=./.gem.20260125-2225-doyjaa
 compiling parser.c
 linking shared-object json/ext/parser.so
 
 current directory: /home/runner/work/awbw/awbw/vendor/bundle/ruby/4.0.0/gems/json-2.18.0/ext/json/ext/parser
-make -j4 DESTDIR\= sitearchdir\=./.gem.20260125-2823-nnhr9i sitelibdir\=./.gem.20260125-2823-nnhr9i install
-/usr/bin/install -c -m 0755 parser.so ./.gem.20260125-2823-nnhr9i/json/ext
+make -j4 DESTDIR\= sitearchdir\=./.gem.20260125-2225-doyjaa sitelibdir\=./.gem.20260125-2225-doyjaa install
+/usr/bin/install -c -m 0755 parser.so ./.gem.20260125-2225-doyjaa/json/ext
 
 current directory: /home/runner/work/awbw/awbw/vendor/bundle/ruby/4.0.0/gems/json-2.18.0/ext/json/ext/parser
-make DESTDIR\= sitearchdir\=./.gem.20260125-2823-nnhr9i sitelibdir\=./.gem.20260125-2823-nnhr9i clean
+make DESTDIR\= sitearchdir\=./.gem.20260125-2225-doyjaa sitelibdir\=./.gem.20260125-2225-doyjaa clean

@@ -22,17 +22,17 @@ checking for RB_WARN_CATEGORY_DEPRECATED in ruby.h... yes
 creating Makefile
 
 current directory: /home/runner/work/awbw/awbw/vendor/bundle/ruby/4.0.0/gems/bigdecimal-4.0.1/ext/bigdecimal
-make -j4 DESTDIR\= sitearchdir\=./.gem.20260125-2823-tzgt12 sitelibdir\=./.gem.20260125-2823-tzgt12 clean
+make -j4 DESTDIR\= sitearchdir\=./.gem.20260125-2225-1s6qdp sitelibdir\=./.gem.20260125-2225-1s6qdp clean
 
 current directory: /home/runner/work/awbw/awbw/vendor/bundle/ruby/4.0.0/gems/bigdecimal-4.0.1/ext/bigdecimal
-make -j4 DESTDIR\= sitearchdir\=./.gem.20260125-2823-tzgt12 sitelibdir\=./.gem.20260125-2823-tzgt12
+make -j4 DESTDIR\= sitearchdir\=./.gem.20260125-2225-1s6qdp sitelibdir\=./.gem.20260125-2225-1s6qdp
 compiling bigdecimal.c
 compiling missing.c
 linking shared-object bigdecimal.so
 
 current directory: /home/runner/work/awbw/awbw/vendor/bundle/ruby/4.0.0/gems/bigdecimal-4.0.1/ext/bigdecimal
-make -j4 DESTDIR\= sitearchdir\=./.gem.20260125-2823-tzgt12 sitelibdir\=./.gem.20260125-2823-tzgt12 install
-/usr/bin/install -c -m 0755 bigdecimal.so ./.gem.20260125-2823-tzgt12
+make -j4 DESTDIR\= sitearchdir\=./.gem.20260125-2225-1s6qdp sitelibdir\=./.gem.20260125-2225-1s6qdp install
+/usr/bin/install -c -m 0755 bigdecimal.so ./.gem.20260125-2225-1s6qdp
 
 current directory: /home/runner/work/awbw/awbw/vendor/bundle/ruby/4.0.0/gems/bigdecimal-4.0.1/ext/bigdecimal
-make DESTDIR\= sitearchdir\=./.gem.20260125-2823-tzgt12 sitelibdir\=./.gem.20260125-2823-tzgt12 clean
+make DESTDIR\= sitearchdir\=./.gem.20260125-2225-1s6qdp sitelibdir\=./.gem.20260125-2225-1s6qdp clean
