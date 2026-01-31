@@ -45,9 +45,6 @@ Rails.application.configure do
 
   app_host = ENV.fetch("APP_HOST", "localhost")
 
-  # Enable serving of images, stylesheets, and JavaScripts from an asset server.
-  # config.asset_host = "http://assets.example.com"
-  config.action_mailer.asset_host = app_host
 
   # Store uploaded files on the digitalocean (see config/storage.yml for options).
   config.active_storage.service = :digitalocean
@@ -55,12 +52,12 @@ Rails.application.configure do
 
   Rails.application.routes.default_url_options[:host] = app_host
 
-  config.after_initialize do
-    ActiveStorage::Current.url_options = {
-      protocol: Rails.env.production? ? "https" : "http",
-      host: app_host
-    }
-  end
+  # config.after_initialize do
+  #   ActiveStorage::Current.url_options = {
+  #     protocol: "https",
+  #     host: app_host
+  #   }
+  # end
 
   # Assume all access to the app is happening through a SSL-terminating reverse proxy.
   config.assume_ssl = true
@@ -98,9 +95,13 @@ Rails.application.configure do
 
   # Set host to be used by links generated in mailer templates.
   config.action_mailer.default_url_options = {
-    host: ENV.fetch("APP_HOST", "localhost"),
-    protocol: Rails.env.production? ? "https" : "http"
+    host: app_host,
+    protocol: "https"
   }
+
+  # Enable serving of images, stylesheets, and JavaScripts from an asset server.
+  # config.asset_host = "http://assets.example.com"
+  config.action_mailer.asset_host = "https://#{app_host}"
 
   # Specify outgoing SMTP server. Remember to add smtp/* credentials via bin/rails credentials:edit.
   # config.action_mailer.smtp_settings = {

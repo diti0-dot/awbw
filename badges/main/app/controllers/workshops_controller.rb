@@ -78,12 +78,15 @@ class WorkshopsController < ApplicationController
 
   def create
     @workshop = current_user.workshops.build(workshop_params)
+
     success = false
 
     Workshop.transaction do
       if @workshop.save
         assign_associations(@workshop)
-        if params.dig(:library_asset, :new_assets).present?
+        if params[:promote_idea_assets] == "true"
+          @workshop.attach_assets_from_idea!
+        elsif params.dig(:library_asset, :new_assets).present?
           update_asset_owner(@workshop)
         end
         success = true
@@ -190,7 +193,7 @@ class WorkshopsController < ApplicationController
 
 
   def set_form_variables
-    @age_ranges = Category.includes(:category_type).where("metadata.name = 'AgeRange'").pluck(:name)
+    @age_ranges = Category.includes(:category_type).where("category_types.name = 'AgeRange'").pluck(:name)
     @potential_series_workshops = Workshop.published.where.not(id: @workshop.id).order(:title)
     @windows_types = WindowsType.all
     @workshop_ideas = WorkshopIdea.order(created_at: :desc)
@@ -298,7 +301,7 @@ class WorkshopsController < ApplicationController
       sector_ids: [],
       workshop_series_children_attributes: [ :id, :workshop_child_id, :workshop_parent_id, :theme_name,
                                             :series_description, :series_description_spanish,
-                                            :position, :_destroy ],
+                                            :position, :_destroy ]
     )
   end
 

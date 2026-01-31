@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_01_25_175620) do
+ActiveRecord::Schema[8.1].define(version: 2026_01_27_171722) do
   create_table "action_text_mentions", charset: "utf8mb4", collation: "utf8mb4_unicode_ci", force: :cascade do |t|
     t.bigint "action_text_rich_text_id", null: false
     t.datetime "created_at", null: false
@@ -129,17 +129,17 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_25_175620) do
     t.string "country"
     t.string "device_type"
     t.string "ip"
-    t.text "landing_page"
+    t.text "landing_page", size: :medium
     t.float "latitude"
     t.float "longitude"
     t.string "os"
     t.string "os_version"
     t.string "platform"
-    t.text "referrer"
+    t.text "referrer", size: :medium
     t.string "referring_domain"
     t.string "region"
     t.datetime "started_at"
-    t.text "user_agent"
+    t.text "user_agent", size: :medium
     t.bigint "user_id"
     t.string "utm_campaign"
     t.string "utm_content"
@@ -213,15 +213,15 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_25_175620) do
   end
 
   create_table "categories", id: :integer, charset: "utf8mb4", collation: "utf8mb4_unicode_ci", force: :cascade do |t|
+    t.integer "category_type_id"
     t.datetime "created_at", precision: nil, null: false
     t.integer "legacy_id"
-    t.integer "metadatum_id"
     t.string "name"
     t.integer "position", null: false
     t.boolean "published", default: false
     t.datetime "updated_at", precision: nil, null: false
-    t.index ["metadatum_id", "position"], name: "index_categories_on_metadatum_id_and_position", unique: true
-    t.index ["metadatum_id"], name: "index_categories_on_metadatum_id"
+    t.index ["category_type_id", "position"], name: "index_categories_on_category_type_id_and_position", unique: true
+    t.index ["category_type_id"], name: "index_categories_on_category_type_id"
   end
 
   create_table "categorizable_items", id: :integer, charset: "utf8mb4", collation: "utf8mb4_unicode_ci", force: :cascade do |t|
@@ -235,6 +235,14 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_25_175620) do
     t.index ["categorizable_type", "categorizable_id"], name: "idx_on_categorizable_type_categorizable_id_ccce65d80c"
     t.index ["category_id", "categorizable_type", "categorizable_id"], name: "index_categorizable_items_uniqueness", unique: true
     t.index ["category_id"], name: "index_categorizable_items_on_category_id"
+  end
+
+  create_table "category_types", id: :integer, charset: "utf8mb4", collation: "utf8mb4_unicode_ci", force: :cascade do |t|
+    t.datetime "created_at", precision: nil, null: false
+    t.string "legacy_id"
+    t.string "name"
+    t.boolean "published", default: false
+    t.datetime "updated_at", precision: nil, null: false
   end
 
   create_table "ckeditor_assets", id: :integer, charset: "utf8mb4", collation: "utf8mb4_unicode_ci", force: :cascade do |t|
@@ -265,6 +273,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_25_175620) do
     t.string "title"
     t.datetime "updated_at", null: false
     t.integer "updated_by_id", null: false
+    t.boolean "visitor_featured", default: false, null: false
     t.integer "windows_type_id"
     t.string "youtube_url"
     t.index ["author_id"], name: "index_community_news_on_author_id"
@@ -312,6 +321,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_25_175620) do
     t.datetime "start_date", precision: nil
     t.string "title"
     t.datetime "updated_at", null: false
+    t.boolean "visitor_featured", default: false, null: false
     t.index ["created_by_id"], name: "index_events_on_created_by_id"
   end
 
@@ -332,7 +342,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_25_175620) do
     t.string "last_name", null: false
     t.string "linked_in_url"
     t.date "member_since"
-    t.text "notes"
+    t.text "notes", size: :medium
     t.boolean "profile_is_searchable", default: true, null: false
     t.boolean "profile_show_affiliations", default: true, null: false
     t.boolean "profile_show_bio", default: true, null: false
@@ -451,14 +461,6 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_25_175620) do
     t.integer "workshop_log_id"
   end
 
-  create_table "metadata", id: :integer, charset: "utf8mb4", collation: "utf8mb4_unicode_ci", force: :cascade do |t|
-    t.datetime "created_at", precision: nil, null: false
-    t.string "legacy_id"
-    t.string "name"
-    t.boolean "published", default: false
-    t.datetime "updated_at", precision: nil, null: false
-  end
-
   create_table "monthly_reports", id: :integer, charset: "utf8mb4", collation: "utf8mb4_unicode_ci", force: :cascade do |t|
     t.string "best_call_time"
     t.boolean "call_requested"
@@ -485,9 +487,9 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_25_175620) do
   create_table "notifications", id: :integer, charset: "utf8mb4", collation: "utf8mb4_unicode_ci", force: :cascade do |t|
     t.datetime "created_at", precision: nil, null: false
     t.datetime "delivered_at"
-    t.text "email_body_html"
-    t.text "email_body_text"
-    t.text "email_subject"
+    t.text "email_body_html", size: :medium
+    t.text "email_body_text", size: :medium
+    t.text "email_subject", size: :medium
     t.string "kind", null: false
     t.integer "noticeable_id"
     t.string "noticeable_type"
@@ -666,6 +668,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_25_175620) do
     t.datetime "updated_at", precision: nil, null: false
     t.string "url"
     t.integer "user_id"
+    t.boolean "visitor_featured", default: false, null: false
     t.integer "windows_type_id"
     t.integer "workshop_id"
     t.index ["user_id"], name: "index_resources_on_user_id"
@@ -707,6 +710,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_25_175620) do
     t.string "title"
     t.datetime "updated_at", null: false
     t.integer "updated_by_id", null: false
+    t.boolean "visitor_featured", default: false, null: false
     t.string "website_url"
     t.integer "windows_type_id", null: false
     t.integer "workshop_id"
@@ -743,7 +747,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_25_175620) do
   end
 
   create_table "tutorials", charset: "utf8mb4", collation: "utf8mb4_unicode_ci", force: :cascade do |t|
-    t.text "body"
+    t.text "body", size: :medium
     t.datetime "created_at", null: false
     t.boolean "featured", default: false, null: false
     t.integer "position", default: 10, null: false
@@ -1053,6 +1057,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_25_175620) do
     t.string "title"
     t.datetime "updated_at", precision: nil, null: false
     t.integer "user_id"
+    t.boolean "visitor_featured", default: false, null: false
     t.text "visualization", size: :long
     t.text "visualization_spanish", size: :long
     t.text "warm_up", size: :long
@@ -1073,13 +1078,14 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_25_175620) do
   end
 
   add_foreign_key "action_text_mentions", "action_text_rich_texts"
+  add_foreign_key "active_storage_attachments", "active_storage_blobs", column: "blob_id"
   add_foreign_key "active_storage_variant_records", "active_storage_blobs", column: "blob_id"
   add_foreign_key "age_ranges", "windows_types"
   add_foreign_key "banners", "users", column: "created_by_id"
   add_foreign_key "banners", "users", column: "updated_by_id"
   add_foreign_key "bookmark_annotations", "bookmarks"
   add_foreign_key "bookmarks", "users"
-  add_foreign_key "categories", "metadata"
+  add_foreign_key "categories", "category_types"
   add_foreign_key "community_news", "projects"
   add_foreign_key "community_news", "users", column: "author_id"
   add_foreign_key "community_news", "users", column: "created_by_id"

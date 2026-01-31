@@ -2,6 +2,7 @@ class Workshop < ApplicationRecord
   include TagFilterable, Trendable, WindowsTypeFilterable, RichTextSearchable
   include Rails.application.routes.url_helpers
   include ActionText::Attachable
+  include ActiveModel::Dirty
 
   belongs_to :windows_type, optional: true
   belongs_to :user, optional: true
@@ -26,7 +27,7 @@ class Workshop < ApplicationRecord
   has_many :workshop_variations, dependent: :restrict_with_error
 
   # has_many through
-  has_many :age_ranges, -> { joins(:category_type).where(metadata: { name: "AgeRange" }) },
+  has_many :age_ranges, -> { joins(:category_type).where(category_types: { name: "AgeRange" }) },
            through: :categorizable_items, source: :category # needs to be after has_many :categorizable_items
   has_many :categories, through: :categorizable_items
   has_many :category_types, through: :categories
@@ -95,7 +96,8 @@ class Workshop < ApplicationRecord
 
   # Callbacks
   before_save :set_time_frame
-  after_save :assign_pending_associations
+  before_save :invalidate_featured_cache_if_changed
+  after_create :assign_pending_associations
 
   # Validations
   validates_presence_of :title
@@ -117,6 +119,7 @@ class Workshop < ApplicationRecord
   scope :sector_names,   ->(names) { tag_names(:sectors, names) }
   scope :created_by_id, ->(created_by_id) { where(user_id: created_by_id) }
   scope :featured, -> { where(featured: true) }
+  scope :visitor_featured, -> { where(visitor_featured: true) }
   scope :legacy, -> { where(legacy: true) }
   scope :published, ->(published = nil) { published.to_s.present? ?
            where(inactive: !published) : where(inactive: false) }
@@ -138,12 +141,17 @@ class Workshop < ApplicationRecord
       .select("workshops.*, COUNT(bookmarks.id) AS bookmarks_count")
       .group("workshops.id")
   }
+  scope :featured_or_visitor_featured, -> {
+    where("(featured = ? OR visitor_featured = ?) AND inactive = ?", true, true, false)
+  }
 
   # Search Cop
   include SearchCop
   search_scope :search do
     attributes all: [ :title, :full_name ] # no spanish alternatives
     options :all, type: :text, default: true, default_operator: :or
+
+    attributes :title, type: :text
 
     scope { join_rich_texts }
     attributes action_text_body: "action_text_rich_texts.plain_text_body"
@@ -268,6 +276,32 @@ class Workshop < ApplicationRecord
     end
   end
 
+  ## ActionText:Attachable
+  def attachable_content_type
+    "application/vnd.active_record.workshop"
+  end
+
+  def invalidate_featured_cache_if_changed
+    if featured_or_visitor_featured_changed?
+      Rails.cache.delete("featured_and_visitor_featured_workshop_ids")
+    end
+  end
+
+  def featured_or_visitor_featured_changed?
+    featured_changed? || visitor_featured_changed? || inactive_changed?
+  end
+
+  def attach_assets_from_idea!
+    return unless workshop_idea
+
+    workshop_idea.assets.find_each do |asset|
+      new_asset = assets.build(type: asset.type)
+      new_asset.file.attach(asset.file.blob)
+    end
+
+    save!
+  end
+
   private
 
   def assign_pending_associations
@@ -283,10 +317,5 @@ class Workshop < ApplicationRecord
       self.categories = Category.where(id: @pending_category_ids)
       @pending_category_ids = nil
     end
-  end
-
-  ## ActionText:Attachable
-  def attachable_content_type
-    "application/vnd.active_record.workshop"
   end
 end

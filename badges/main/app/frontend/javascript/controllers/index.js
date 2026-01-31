@@ -39,5 +39,14 @@ application.register("rhino-source", RhinoSourceController)
 import ToggleLockController from "./toggle_lock_controller"
 application.register("toggle-lock", ToggleLockController)
 
+import ConfirmEmailController from "./confirm_email_controller"
+application.register("confirm-email", ConfirmEmailController)
+
 import PrefetchLazyController from "./prefetch_lazy_controller"
 application.register("prefetch-lazy", PrefetchLazyController)
+
+import PrintOptionsController from "./print_options_controller"
+application.register("print-options", PrintOptionsController)
+
+import OptimisticBookmarkController from "./optimistic_bookmark_controller"
+application.register("optimistic-bookmark", OptimisticBookmarkController)

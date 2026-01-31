@@ -2,16 +2,25 @@ class ResourcesController < ApplicationController
   include ExternallyRedirectable, AssetUpdatable, AhoyViewTracking
 
   def index
+    authorize!
+
     if turbo_frame_request?
       per_page = params[:number_of_items_per_page].presence || 18
-      unfiltered = Resource.where(kind: Resource::PUBLISHED_KINDS) # TODO - #FIXME brittle
-        .includes(:primary_asset, :gallery_assets, :attachments, :bookmarks, :downloadable_asset, primary_asset: [ :file_attachment ], downloadable_asset: [ :file_attachment ])
-      filtered = unfiltered.search_by_params(params)
-        .by_created
-      @resources = filtered.paginate(page: params[:page], per_page: per_page)
 
-      total_count = unfiltered.count
-      filtered_count = filtered.count
+      base_scope =
+        authorized_scope(Resource.includes(:bookmarks, primary_asset: :file_attachment,
+                                           downloadable_asset: :file_attachment).where(kind: Resource::PUBLISHED_KINDS)) # TODO - #FIXME brittle
+
+      filtered =
+        base_scope
+          .search_by_params(params)
+          .by_featured_first
+
+      @resources =
+        filtered.paginate(page: params[:page], per_page: per_page)
+
+      total_count    = base_scope.size
+      filtered_count = filtered.size
       @count_display = if filtered_count == total_count
         total_count
       else
@@ -25,10 +34,12 @@ class ResourcesController < ApplicationController
   end
 
   def stories
+    authorize!
     @stories = Resource.story.paginate(page: params[:page], per_page: 6).decorate
   end
 
   def new
+    authorize!
     @resource = Resource.new.decorate
     set_form_variables
   end
@@ -51,6 +62,7 @@ class ResourcesController < ApplicationController
   end
 
   def create
+    authorize!
     @resource = current_user.resources.build(resource_params)
 
     if @resource.save
@@ -69,6 +81,7 @@ class ResourcesController < ApplicationController
 
   def update
     @resource = Resource.find(params[:id])
+    authorize! @resource
     @resource.user ||= current_user
     if @resource.update(resource_params)
       flash[:notice] = "Resource updated."
@@ -82,6 +95,7 @@ class ResourcesController < ApplicationController
 
   def destroy
     @resource = Resource.find(params[:id])
+    authorize! @resource
     @resource.destroy!
     redirect_to resources_path, notice: "Resource was successfully destroyed."
   end
@@ -103,7 +117,7 @@ class ResourcesController < ApplicationController
       if params[:from] == "resources_index"
         path = resources_path
       elsif params[:from] == "dashboard_index"
-        path = authenticated_root_path
+        path = root_path
       else
         resource_path(params[:resource_id])
       end
@@ -115,9 +129,6 @@ class ResourcesController < ApplicationController
   private
 
   def set_form_variables
-    @resource.build_primary_asset if @resource.primary_asset.blank?
-    @resource.gallery_assets.build
-
     @windows_types = WindowsType.all
     @authors = User.active.or(User.where(id: @resource.user_id))
       .order(:first_name, :last_name)

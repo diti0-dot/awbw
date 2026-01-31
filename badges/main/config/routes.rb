@@ -92,7 +92,9 @@ Rails.application.routes.draw do
   resources :users, only: [ :new, :index, :show, :edit, :update, :create, :destroy ] do
     member do
       get :generate_facilitator
+      post :send_reset_password_instructions
       post :toggle_lock_status
+      post :confirm_email
     end
   end
   resources :user_forms
@@ -119,15 +121,5 @@ Rails.application.routes.draw do
     end
   end
 
-  # Root paths
   root to: "dashboard#index"
-  authenticated :user do
-    root to: "dashboard#index", as: :authenticated_root
-  end
-  # Wrap Devise routes in a scope for unauthenticated users
-  devise_scope :user do
-    unauthenticated do
-      root to: "devise/sessions#new", as: :unauthenticated_root
-    end
-  end
 end

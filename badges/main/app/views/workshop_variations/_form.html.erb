@@ -1,6 +1,4 @@
 <div class="rounded-xl bg-white p-6">
-  <%= render "assets/form", owner: @workshop_variation %>
-
   <%= simple_form_for @workshop_variation do |f| %>
     <%= hidden_field_tag(:from, params[:from]) %>
 
@@ -75,7 +73,7 @@
          elsif current_user.super_user?
            workshop_variations_path
          else
-           authenticated_root_path
+           root_path
          end %>
 
       <%= link_to 'Cancel', cancel_path,
@@ -86,3 +84,5 @@
     </div>
   <% end %>
 </div>
+
+<div class="my-4"><%= render "assets/form", owner: @workshop_variation %></div>

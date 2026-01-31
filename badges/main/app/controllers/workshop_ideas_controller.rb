@@ -29,7 +29,7 @@ class WorkshopIdeasController < ApplicationController
         notification_type: 0)
 
       if params.dig(:library_asset, :new_assets).present?
-        update_asset_owner(@workshop)
+        update_asset_owner(@workshop_idea)
       end
 
       redirect_to workshop_ideas_path, notice: "Workshop idea was successfully created."
@@ -60,7 +60,7 @@ class WorkshopIdeasController < ApplicationController
 
   # Optional hooks for setting variables for forms or index
   def set_form_variables
-    @age_ranges = Category.includes(:category_type).where("metadata.name = 'AgeRange'").pluck(:name)
+    @age_ranges = Category.includes(:category_type).where("category_types.name = 'AgeRange'").pluck(:name)
     @potential_series_workshops = Workshop.published.order(:title)
     @category_types = CategoryType.includes(:categories).published.decorate
     @sectors = Sector.published

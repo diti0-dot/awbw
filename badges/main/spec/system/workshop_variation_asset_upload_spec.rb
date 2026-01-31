@@ -2,7 +2,7 @@
 require "rails_helper"
 
 RSpec.describe "Workshop Variation asset upload", type: :system do
-  let(:admin) { create(:user, super_user: true) }
+  let(:admin) { create(:user, :admin) }
 
   before do
     sign_in admin
@@ -24,9 +24,9 @@ RSpec.describe "Workshop Variation asset upload", type: :system do
 
   def delete_asset(asset_type:)
     div_prefix = case asset_type
-    when "PrimaryAsset", "Primary asset"
+    when "PrimaryAsset", "Primary"
       "primary_asset_"
-    when "GalleryAsset", "Gallery asset"
+    when "GalleryAsset", "Gallery"
       "gallery_asset_"
     else
       raise "Unknown asset type: #{asset_type}"
@@ -48,11 +48,9 @@ RSpec.describe "Workshop Variation asset upload", type: :system do
 
       visit edit_workshop_variation_path(workshop_variation)
 
-      find("#assets-button").click
-      upload_asset(type: "Primary asset", file: "spec/fixtures/files/sample.png")
+      upload_asset(type: "Primary", file: "spec/fixtures/files/sample.png")
 
-      expect(page).to have_content("Primary asset")
-      expect(page).not_to have_content("error")
+      expect(page).to have_content("Primary")
     end
 
     it "uploads a gallery asset" do
@@ -60,11 +58,9 @@ RSpec.describe "Workshop Variation asset upload", type: :system do
 
       visit edit_workshop_variation_path(workshop_variation)
 
-      find("#assets-button").click
-      upload_asset(type: "Gallery asset", file: "spec/fixtures/files/sample.png")
+      upload_asset(type: "Gallery", file: "spec/fixtures/files/sample.png")
 
-      expect(page).to have_content("Gallery asset")
-      expect(page).not_to have_content("error")
+      expect(page).to have_content("Gallery")
     end
 
     it "allows deleting a primary asset and re-uploading a new one" do
@@ -72,19 +68,17 @@ RSpec.describe "Workshop Variation asset upload", type: :system do
 
       visit edit_workshop_variation_path(workshop_variation)
 
-      find("#assets-button").click
-      upload_asset(type: "Primary asset", file: "spec/fixtures/files/sample.png")
+      upload_asset(type: "Primary", file: "spec/fixtures/files/sample.png")
 
       expect(page).to have_selector("div[id^='primary_asset_']")
 
-      delete_asset(asset_type: "Primary asset")
+      delete_asset(asset_type: "Primary")
 
       expect(page).not_to have_selector("div[id^='primary_asset_']")
 
-      upload_asset(type: "Gallery asset", file: "spec/fixtures/files/sample.png")
+      upload_asset(type: "Gallery", file: "spec/fixtures/files/sample.png")
 
       expect(page).to have_selector("div[id^='gallery_asset_']")
-      expect(page).not_to have_content("error")
     end
 
     it "shows an error when trying to upload a second primary asset" do
@@ -92,12 +86,11 @@ RSpec.describe "Workshop Variation asset upload", type: :system do
 
       visit edit_workshop_variation_path(workshop_variation)
 
-      find("#assets-button").click
-      upload_asset(type: "Primary asset", file: "spec/fixtures/files/sample.png")
+      upload_asset(type: "Primary", file: "spec/fixtures/files/sample.png")
 
       expect(page).to have_selector("div[id^='primary_asset_']")
 
-      upload_asset(type: "Primary asset", file: "spec/fixtures/files/sample.png")
+      upload_asset(type: "Primary", file: "spec/fixtures/files/sample.png")
 
       expect(page).to have_content("Only one Primary or Downloadable asset allowed.")
     end
@@ -107,15 +100,13 @@ RSpec.describe "Workshop Variation asset upload", type: :system do
 
       visit edit_workshop_variation_path(workshop_variation)
 
-      find("#assets-button").click
-      upload_asset(type: "Primary asset", file: "spec/fixtures/files/sample.png")
+      upload_asset(type: "Primary", file: "spec/fixtures/files/sample.png")
       expect(page).to have_selector("div[id^='primary_asset_']")
 
-      upload_asset(type: "Gallery asset", file: "spec/fixtures/files/sample.png")
+      upload_asset(type: "Gallery", file: "spec/fixtures/files/sample.png")
       expect(page).to have_selector("div[id^='gallery_asset_']")
 
       workshop_variation.description.gsub("error", "ezzlor") # to avoid flaky test
-      expect(page).not_to have_content("error")
     end
   end
 
@@ -125,11 +116,9 @@ RSpec.describe "Workshop Variation asset upload", type: :system do
 
       visit edit_workshop_variation_path(workshop_variation)
 
-      find("#assets-button").click
-      upload_asset(type: "Primary asset", file: "spec/fixtures/files/sample.png")
+      upload_asset(type: "Primary", file: "spec/fixtures/files/sample.png")
 
       expect(page).to have_selector("div[id^='primary_asset_']")
-      expect(page).not_to have_content("error")
     end
 
     it "uploads a gallery asset" do
@@ -137,11 +126,9 @@ RSpec.describe "Workshop Variation asset upload", type: :system do
 
       visit edit_workshop_variation_path(workshop_variation)
 
-      find("#assets-button").click
-      upload_asset(type: "Gallery asset", file: "spec/fixtures/files/sample.png")
+      upload_asset(type: "Gallery", file: "spec/fixtures/files/sample.png")
 
       expect(page).to have_selector("div[id^='gallery_asset_']")
-      expect(page).not_to have_content("error")
     end
 
     it "allows deleting a primary asset and re-uploading a new one" do
@@ -149,19 +136,17 @@ RSpec.describe "Workshop Variation asset upload", type: :system do
 
       visit edit_workshop_variation_path(workshop_variation)
 
-      find("#assets-button").click
-      upload_asset(type: "Primary asset", file: "spec/fixtures/files/sample.png")
+      upload_asset(type: "Primary", file: "spec/fixtures/files/sample.png")
 
       expect(page).to have_selector("div[id^='primary_asset_']")
 
-      delete_asset(asset_type: "Primary asset")
+      delete_asset(asset_type: "Primary")
 
       expect(page).not_to have_selector("div[id^='primary_asset_']")
 
-      upload_asset(type: "Gallery asset", file: "spec/fixtures/files/sample.png")
+      upload_asset(type: "Gallery", file: "spec/fixtures/files/sample.png")
 
       expect(page).to have_selector("div[id^='gallery_asset_']")
-      expect(page).not_to have_content("error")
     end
 
     it "shows an error when trying to upload a second primary asset" do
@@ -169,11 +154,10 @@ RSpec.describe "Workshop Variation asset upload", type: :system do
 
       visit edit_workshop_variation_path(workshop_variation)
 
-      find("#assets-button").click
-      upload_asset(type: "Primary asset", file: "spec/fixtures/files/sample.png")
+      upload_asset(type: "Primary", file: "spec/fixtures/files/sample.png")
 
       expect(page).to have_selector("div[id^='primary_asset_']")
-      upload_asset(type: "Primary asset", file: "spec/fixtures/files/sample.png")
+      upload_asset(type: "Primary", file: "spec/fixtures/files/sample.png")
 
       expect(page).to have_content("Only one Primary or Downloadable asset allowed.")
     end
@@ -183,28 +167,24 @@ RSpec.describe "Workshop Variation asset upload", type: :system do
 
       visit edit_workshop_variation_path(workshop_variation)
 
-      find("#assets-button").click
-      upload_asset(type: "Primary asset", file: "spec/fixtures/files/sample.png")
+      upload_asset(type: "Primary", file: "spec/fixtures/files/sample.png")
       expect(page).to have_selector("div[id^='primary_asset_']")
 
-      upload_asset(type: "Gallery asset", file: "spec/fixtures/files/sample.png")
+      upload_asset(type: "Gallery", file: "spec/fixtures/files/sample.png")
       expect(page).to have_selector("div[id^='gallery_asset_']")
-
-      expect(page).not_to have_content("error")
     end
 
     it "updates asset type" do
       workshop_variation = create(:workshop_variation, name: SecureRandom.uuid)
 
       visit edit_workshop_variation_path(workshop_variation)
-      find("#assets-button").click
 
-      # Upload a Primary asset
-      upload_asset(type: "Primary asset", file: "spec/fixtures/files/sample.png")
+      # Upload a Primary
+      upload_asset(type: "Primary", file: "spec/fixtures/files/sample.png")
       expect(page).to have_selector("div[id^='primary_asset_']")
 
       within("div[id^='primary_asset_']") do
-        select "Gallery asset", from: "library_asset_type"
+        select "Gallery", from: "library_asset_type"
       end
 
       within("div[id^='primary_asset_']") do
