@@ -1,5 +1,5 @@
 class CommunityNewsController < ApplicationController
-  include ExternallyRedirectable, AssetUpdatable, AhoyViewTracking
+  include ExternallyRedirectable, AssetUpdatable, AhoyTracking
   before_action :set_community_news, only: [ :show, :edit, :update, :destroy ]
 
   def index
@@ -80,7 +80,6 @@ class CommunityNewsController < ApplicationController
   # Optional hooks for setting variables for forms or index
   def set_form_variables
     @organizations = Project.pluck(:name, :id).sort_by(&:first)
-    @windows_types = WindowsType.all
     @authors = User.active.or(User.where(id: @community_news.author_id))
                    .map { |u| [ u.full_name, u.id ] }.sort_by(&:first)
   end
@@ -94,9 +93,9 @@ class CommunityNewsController < ApplicationController
   # Strong parameters
   def community_news_params
     params.require(:community_news).permit(
-      :title, :rhino_body, :published, :featured,
+      :title, :rhino_body, :published, :featured, :public, :public_featured,
       :reference_url, :youtube_url,
-      :project_id, :windows_type_id,
+      :project_id,
       :author_id, :created_by_id, :updated_by_id
     )
   end
