@@ -22,30 +22,40 @@
                         class: "w-full rounded-md border-gray-300 shadow-sm
                       focus:border-blue-500 focus:ring focus:ring-blue-200 focus:ring-opacity-50"
                       }  %>
-                      <% if current_user.super_user? %>
-                        <%= f.input :member_since,
-                                    as: :date,
-                                    discard_day: true,
-                                    start_year: 1991,
-                                    end_year: Time.current.year,
-                                    order: [:month, :year],
-                                    label: "Facilitator since",
-                                    hint: "Pick Jan if you only know the year",
-                                    input_html: {
-                                      type: "date",
-                                      class: "w-full rounded-md border-gray-300 shadow-sm admin-only bg-blue-100 border-blue-200
-                                      focus:border-blue-500 focus:ring focus:ring-blue-200 focus:ring-opacity-50"
-                                    } %>
-                      <% else %>
-                        <div>
-                          <label class="block text-md font-medium text-gray-700 mb-1">
-                            Facilitator since
-                          </label>
-                          <span class="text-gray-900 font-medium">
-                            <%= f.object.member_since&.to_date&.strftime("%B %d, %Y") || "—" %>
-                          </span>
-                        </div>
-                      <% end %>
+          <% if current_user.super_user? %>
+            <%= f.input :member_since,
+                        as: :date,
+                        discard_day: true,
+                        start_year: 1991,
+                        end_year: Time.current.year,
+                        order: [:month, :year],
+                        label: "Facilitator since",
+                        hint: "Pick Jan if you only know the year",
+                        input_html: {
+                          type: "date",
+                          class: "w-full rounded-md border-gray-300 shadow-sm admin-only bg-blue-100 border-blue-200
+                          focus:border-blue-500 focus:ring focus:ring-blue-200 focus:ring-opacity-50"
+                        } %>
+          <% else %>
+            <div>
+              <label class="block text-md font-medium text-gray-700 mb-1">
+                Facilitator since
+              </label>
+              <span class="text-gray-900 font-medium">
+                <%= f.object.member_since&.to_date&.strftime("%B %d, %Y") || "—" %>
+              </span>
+            </div>
+          <% end %>
+          <% if current_user.admin? %>
+            <div class="admin-only bg-blue-100 pt-3 px-3">
+              <%= f.input :published,
+                          as: :boolean,
+                          input_html: {
+                            class: "h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                          },
+                          wrapper_html: { class: "flex items-center space-x-2" } %>
+            </div>
+          <% end %>
         </div>
       </div>
     </div>
@@ -289,15 +299,12 @@
     </div>
   </div>
 
-
-  <!-- Actions -->
-  <div class="mt-6 flex flex-wrap gap-3">
-    <% if @facilitator.persisted? && current_user.super_user? %>
-      <%= link_to "Delete", @facilitator, method: :delete,
-                  data: { confirm: "Are you sure?" },
-                  class: "btn btn-danger-outline" %>
+  <div class="action-buttons mt-8 flex justify-center gap-3">
+    <% if f.object.persisted? && allowed_to?(:destroy?, f.object) %>
+      <%= link_to "Delete", @facilitator, method: :delete, class: "btn btn-danger-outline",
+                  data: { confirm: "Are you sure you want to delete?" } %>
     <% end %>
     <%= link_to "Cancel", facilitators_path, class: "btn btn-secondary-outline" %>
-    <%= f.submit "Submit", class: "btn btn-primary" %>
+    <%= f.button :submit, class: "btn btn-primary" %>
   </div>
 <% end %>

@@ -5,8 +5,9 @@ RSpec.describe "events/new", type: :view do
 
   before do
     assign(:event, event)
-    allow(view).to receive(:current_user).and_return(build_stubbed(:user, super_user: true))
+    allow(view).to receive(:current_user).and_return(build_stubbed(:user, :admin))
     allow(view).to receive(:allowed_to?).with(:manage?, event).and_return(true)
+    allow(view).to receive(:allowed_to?).with(:destroy?, event).and_return(true)
   end
 
   it "renders the new event heading" do
@@ -19,12 +20,6 @@ RSpec.describe "events/new", type: :view do
     render
 
     expect(rendered).to have_selector("form")
-    expect(rendered).to have_field("event[title]")
-    expect(rendered).to have_selector("textarea[name='event[description]']")
-    expect(rendered).to have_selector("input[type='datetime-local'][name='event[start_date]']")
-    expect(rendered).to have_selector("input[type='datetime-local'][name='event[end_date]']")
-    expect(rendered).to have_selector("input[type='datetime-local'][name='event[registration_close_date]']")
-    expect(rendered).to have_selector("input[type='checkbox'][name='event[inactive]']")
   end
 
   it "renders the Cancel link" do

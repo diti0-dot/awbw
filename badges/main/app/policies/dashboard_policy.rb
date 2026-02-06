@@ -1,6 +1,4 @@
 class DashboardPolicy < ApplicationPolicy
-  skip_pre_check :verify_authenticated!
-
   def index?
     true
   end
@@ -9,7 +7,7 @@ class DashboardPolicy < ApplicationPolicy
     if authenticated?
       relation.featured
     else
-      relation.public_featured
+      relation.publicly_featured
     end
   end
 end

@@ -1,5 +1,6 @@
 class StoriesController < ApplicationController
   include ExternallyRedirectable, AssetUpdatable, AhoyTracking
+  skip_before_action :authenticate_user!, only: [ :index, :show ]
   before_action :set_story, only: [ :show, :edit, :update, :destroy ]
 
   def index
@@ -110,7 +111,7 @@ class StoriesController < ApplicationController
   # Strong parameters
   def story_params
     params.require(:story).permit(
-      :title, :rhino_body, :featured, :published, :public, :public_featued, :youtube_url, :website_url,
+      :title, :rhino_body, :featured, :published, :publicly_visible, :public_featued, :youtube_url, :website_url,
       :windows_type_id, :project_id, :workshop_id, :external_workshop_title,
       :created_by_id, :updated_by_id, :story_idea_id, :spotlighted_facilitator_id
     )

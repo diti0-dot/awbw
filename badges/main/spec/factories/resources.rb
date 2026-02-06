@@ -2,12 +2,20 @@ FactoryBot.define do
   factory :resource do
     association :user
     title { Faker::Lorem.sentence }
-    kind { [ Resource::PUBLISHED_KINDS.sample ] }
+    kind { Resource::PUBLISHED_KINDS.sample }
 
     # Use after(:create) to assign sectors
     after(:create) do |resource|
       sector = Sector.published.first || create(:sector) # adjust factory as needed
       resource.sectors << sector
+    end
+
+    trait :published do
+      published { true }
+    end
+
+    trait :unpublished do
+      published { false }
     end
   end
 end
