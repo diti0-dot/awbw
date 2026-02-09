@@ -6,14 +6,14 @@ class FaqPolicy < ApplicationPolicy
   end
 
   def show?
-    admin? || record.publicly_visible? || (authenticated && record.published?)
+    admin? || record.publicly_visible? || (authenticated? && record.published?)
   end
 
   # Scoping
   # See https://actionpolicy.evilmartians.io/#/scoping
   #
   relation_scope do |relation|
-    next relation if user.admin?
+    next relation if admin?
     if authenticated?
       relation.published
     else

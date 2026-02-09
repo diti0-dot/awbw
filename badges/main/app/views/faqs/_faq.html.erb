@@ -8,7 +8,7 @@
   <div class="border-b border-gray-300">
     <div class="flex items-center w-full">
 
-      <% if current_user.super_user? %>
+      <% if current_user&.super_user? %>
         <span class="admin-only bg-blue-100">
           <i
             class="fa-solid fa-sort cursor-move self-center pr-2"
@@ -61,14 +61,12 @@
           class="
             w-full text-lg border-transparent peer-has-hover:border
             peer-has-hover:border-gray-300 peer-has-hover:shadow-sm
-            peer-has-hover:rounded-md peer-has-hover:p-1
-          "
-        >
+            peer-has-hover:rounded-md peer-has-hover:p-1">
 
           <%= faq.question %></span>
       <% end %>
 
-      <% if current_user.super_user? %>
+      <% if current_user&.super_user? %>
         <div class="flex flex-col mx-3 ">
           <span class="admin-only bg-blue-100">
             <%= link_to faq,
@@ -125,12 +123,11 @@
   <div
     id="<%= dom_id faq, :answer  %>"
     class="hidden py-5 border-b border-gray-300"
-    data-dropdown-target="content"
-  >
+    data-dropdown-target="content">
     <strong class="sr-only">Answer:</strong>
 
     <%= render "inline_edit", model: faq, attribute: :answer, frame_class: "flex flex-col" do %>
-      <% if current_user.super_user? %>
+      <% if current_user&.super_user? %>
         <%= link_to("Edit", edit_faq_path(faq), class: "btn btn-secondary-outline self-end admin-only bg-blue-100") %>
 
       <% end %>
