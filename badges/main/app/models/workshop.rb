@@ -3,6 +3,23 @@ class Workshop < ApplicationRecord
   include Rails.application.routes.url_helpers
   include ActionText::Attachable
   include ActiveModel::Dirty
+  include Mentioner
+
+  # Define rich text fields for mentions functionality
+  def self.mentionable_rich_text_fields
+    [
+      :rhino_objective, :rhino_materials, :rhino_optional_materials, :rhino_setup,
+      :rhino_introduction, :rhino_opening_circle, :rhino_demonstration, :rhino_warm_up,
+      :rhino_visualization, :rhino_creation, :rhino_closing, :rhino_notes, :rhino_tips,
+      :rhino_misc1, :rhino_misc2, :rhino_extra_field, :rhino_objective_spanish,
+      :rhino_materials_spanish, :rhino_optional_materials_spanish, :rhino_age_range_spanish,
+      :rhino_setup_spanish, :rhino_introduction_spanish, :rhino_opening_circle_spanish,
+      :rhino_demonstration_spanish, :rhino_warm_up_spanish, :rhino_visualization_spanish,
+      :rhino_creation_spanish, :rhino_closing_spanish, :rhino_notes_spanish,
+      :rhino_tips_spanish, :rhino_misc1_spanish, :rhino_misc2_spanish,
+      :rhino_extra_field_spanish
+    ]
+  end
 
   belongs_to :windows_type, optional: true
   belongs_to :user, optional: true
@@ -33,15 +50,15 @@ class Workshop < ApplicationRecord
            source: :category # needs to be after has_many :categorizable_items
   has_many :categories, through: :categorizable_items
   has_many :category_types, through: :categories
+  has_many :organizations, through: :user
   has_many :quotes, through: :quotable_item_quotes
   has_many :resources, through: :workshop_resources, source: :resource
   has_many :sectors, through: :sectorable_items
 
+
   # Images
   has_one_attached :thumbnail # old paperclip -- TODO convert these to AvatarImage records
   has_one_attached :header # old paperclip -- TODO convert these to MainImage records
-  has_many :attachments, as: :owner, dependent: :destroy # old paperclip -- TODO convert these to GalleryImage records
-  has_many :images, as: :owner, dependent: :destroy # old paperclip -- TODO convert these to GalleryImage records
   has_one :primary_asset, -> { where(type: "PrimaryAsset") },
           as: :owner, class_name: "PrimaryAsset", dependent: :destroy
   has_many :gallery_assets, -> { where(type: "GalleryAsset") },
@@ -108,6 +125,8 @@ class Workshop < ApplicationRecord
   validates :rating, numericality: { greater_than_or_equal_to: 0, less_than_or_equal_to: 5 }
 
   # Nested attributes
+  accepts_nested_attributes_for :primary_asset, reject_if: :all_blank, allow_destroy: true
+  accepts_nested_attributes_for :gallery_assets, reject_if: :all_blank, allow_destroy: true
   accepts_nested_attributes_for :quotes, reject_if: proc { |object| object["quote"].nil? }
   accepts_nested_attributes_for :workshop_logs, reject_if: :all_blank, allow_destroy: true
   accepts_nested_attributes_for :workshop_series_children,
@@ -121,7 +140,7 @@ class Workshop < ApplicationRecord
   scope :created_by_id, ->(created_by_id) { where(user_id: created_by_id) }
   scope :legacy, -> { where(legacy: true) }
   scope :title, ->(title) { where("workshops.title like ?", "%#{ title }%") }
-  scope :order_by_date, ->(sort_order = "asc") {
+  scope :order_by_date, ->(sort_order = "asc") do
     order(Arel.sql(<<~SQL.squish))
     COALESCE(
       STR_TO_DATE(
@@ -131,14 +150,14 @@ class Workshop < ApplicationRecord
       DATE(workshops.created_at)
     ) #{sort_order == "asc" ? "ASC" : "DESC"}
     SQL
-  }
+  end
   scope :title, ->(title) { where("workshops.title like ?", "%#{ title }%") }
   scope :windows_type_ids, ->(windows_type_ids) { where(windows_type_id: windows_type_ids) }
-  scope :with_bookmarks_count, -> {
+  scope :with_bookmarks_count, -> do
     left_joins(:bookmarks)
       .select("workshops.*, COUNT(bookmarks.id) AS bookmarks_count")
       .group("workshops.id")
-  }
+  end
 
   # Search Cop
   include SearchCop

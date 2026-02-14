@@ -112,7 +112,7 @@ class WorkshopLogsController < ApplicationController
       Arel.sql("DISTINCT EXTRACT(YEAR FROM COALESCE(date, created_at, NOW()))")
     ).sort.reverse
 
-    scoped_users = current_user&.super_user? ? User.active : User.where(id: current_user.id)
+    scoped_users = authorized_scope(User.all, as: :colleagues)
     @people = scoped_users.or(User.where(id: @workshop_logs_unpaginated.pluck(:user_id)))
                                 .includes(:workshop_logs, :person)
                                 .joins(:workshop_logs)
@@ -136,11 +136,9 @@ class WorkshopLogsController < ApplicationController
       @workshop = Workshop.new
     end
 
-    workshops = Workshop.includes(:windows_type)
-    unless current_user&.super_user?
-      workshops = workshops.published
-    end
-    @workshops = workshops.or(Workshop.where(id: @workshop_log.workshop_id).includes(:windows_type))
+    workshops = authorized_scope(Workshop.all)
+    @workshops = workshops.or(Workshop.where(id: @workshop_log.workshop_id))
+                          .includes(:windows_type)
                           .distinct
                           .order(title: :asc)
 
@@ -200,7 +198,7 @@ class WorkshopLogsController < ApplicationController
     params.require(:workshop_log).permit(
       :children_ongoing, :children_first_time, :teens_ongoing, :teens_first_time,
       :adults_ongoing, :adults_first_time, :owner_id, :owner_type, :user_id, :organization_id, :date,
-      :workshop_name, :workshop_id, :windows_type_id, :other_description, # :user,
+      :workshop_name, :workshop_id, :windows_type_id, :other_description, :external_workshop_title, # :user,
       quotable_item_quotes_attributes: [
         :id, :quotable_type, :quotable_id, :_destroy,
         quote_attributes: [ :id, :quote, :age, :workshop_id, :_destroy ] ],

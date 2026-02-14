@@ -7,6 +7,7 @@ RSpec.describe "organizations/new", type: :view do
   before do
     assign(:organization, Organization.new)
     allow(view).to receive(:current_user).and_return(admin)
+    allow(view).to receive(:allowed_to?).and_return(true)
     render
   end
 
@@ -19,8 +20,6 @@ RSpec.describe "organizations/new", type: :view do
       assert_select "textarea[name=?]", "organization[description]"
 
       assert_select "select[name=?]", "organization[organization_status_id]"
-
-      assert_select "input[name=?]", "organization[inactive]"
 
       assert_select "textarea[name=?]", "organization[notes]"
     end

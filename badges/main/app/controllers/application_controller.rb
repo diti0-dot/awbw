@@ -1,9 +1,13 @@
 class ApplicationController < ActionController::Base
-  prepend ActionPolicy::Draper
-
   before_action :authenticate_user!  # ensures only logged-in users can access pages
   before_action :set_current_user # for AhoyTrackable in models
   before_action :preload_current_user_associations
+
+  before_action do
+    if current_user && allowed_to?(:manage?, with: ApplicationPolicy)
+      Rack::MiniProfiler.authorize_request
+    end
+  end
 
   verify_authorized unless: :devise_controller?
 
@@ -12,7 +16,7 @@ class ApplicationController < ActionController::Base
 
   rescue_from ActionPolicy::Unauthorized do |exception|
     flash[:alert] = "You are not authorized to perform this action.<br>#{ exception.message if Rails.env.test? }"
-    redirect_back_or_to root_path
+    redirect_to root_path
   end
 
   private
@@ -25,8 +29,10 @@ class ApplicationController < ActionController::Base
     end
   end
 
+  around_action :set_time_zone_from_user
+
   def set_time_zone_from_user
-    zone = ActiveSupport::TimeZone[current_user&.time_zone]
+    zone = ActiveSupport::TimeZone[current_user&.time_zone || "UTC"]
     if zone
       Time.use_zone(zone) { yield }
     else
@@ -63,7 +69,7 @@ class ApplicationController < ActionController::Base
 
   def preload_current_user_associations
     return unless current_user
-    current_user.organization_users.includes(:organization).load
+    current_user.person.organization_people.includes(:organization).load if current_user.person
   end
 
   def set_current_user

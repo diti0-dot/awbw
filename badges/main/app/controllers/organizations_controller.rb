@@ -88,10 +88,13 @@ class OrganizationsController < ApplicationController
     @people_array = Person.includes(:user)
                           .joins(:user)
                           .order(:first_name, :last_name)
-                          .map { |f| [ f.name, f.user.id ] }
-    @organization.organization_users = @organization.organization_users
-                                     .includes(:organization)
-                                     .sort_by { |ou| ou.user.person&.name.to_s.downcase }
+                          .map { |f| [ f.name, f.id ] }
+
+    if @organization.persisted? && @organization.errors.empty?
+      @organization.organization_people = @organization.organization_people
+                                       .includes(:organization)
+                                       .sort_by { |op| op.person&.name.to_s.downcase }
+    end
   end
 
   def set_index_variables
@@ -108,16 +111,19 @@ class OrganizationsController < ApplicationController
   def organization_params
     params.require(:organization).permit(
       :name, :description, :start_date, :end_date, :mission_vision_values,
-      :agency_type,  :agency_type_other, :inactive, :internal_id, :logo, :notes,  :website_url,
+      :agency_type,  :agency_type_other, :inactive, :internal_id, :logo, :notes, :email, :website_url,
       :organization_status_id, :location_id, :windows_type_id,
+      :profile_show_sectors, :profile_show_email, :profile_show_phone,
+      :profile_show_website, :profile_show_description, :profile_show_workshops,
+      :profile_show_stories, :profile_show_events_registered, :profile_show_workshop_logs,
       sectorable_items_attributes: [
         :id,
         :sector_id,
         :_destroy
       ],
-      organization_users_attributes: [
+      organization_people_attributes: [
         :id,
-        :user_id,
+        :person_id,
         :inactive,
         :title,
         :_destroy
