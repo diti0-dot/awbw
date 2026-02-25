@@ -1,33 +1,30 @@
-<div class="min-h-screen py-8">
-  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-    <div class="bg-white border border-gray-200 rounded-xl shadow-lg hover:shadow-xl transition-shadow duration-200 p-6 space-y-6">
+<% content_for(:page_bg_class, "admin-or-owner-or-member") %>
+<div class="<%= DomainTheme.bg_class_for(:workshop_logs) %> border border-gray-200 rounded-xl shadow p-6 space-y-6">
 
       <!-- Header -->
-      <div class="flex items-center justify-between">
-        <h1 class="text-2xl font-semibold text-gray-900">
-          <%= @workshop_log.workshop&.title || "Workshop Log" %>
-        </h1>
-
-        <div class="flex gap-2">
-          <% if allowed_to?(:index?, WorkshopLog) %>
-            <%= link_to "Back to Logs", workshop_logs_path, class: "btn btn-secondary-outline" %>
-          <% end %>
-          <% if allowed_to?(:edit?, @workshop_log) %>
-            <%= link_to "Edit Log", edit_workshop_log_path(@workshop_log), class: "btn btn-primary-outline" %>
-          <% end %>
-        </div>
+      <div class="flex flex-wrap justify-end gap-2 mb-4">
+        <%= link_to "Home", root_path, class: "text-sm text-gray-500 hover:text-gray-700 px-2 py-1" %>
+        <% if allowed_to?(:index?, WorkshopLog) %>
+          <%= link_to "Workshop Logs", workshop_logs_path, class: "text-sm text-gray-500 hover:text-gray-700 px-2 py-1" %>
+        <% end %>
+        <% if allowed_to?(:edit?, @workshop_log) %>
+          <%= link_to "Edit", edit_workshop_log_path(@workshop_log), class: "text-sm text-gray-500 hover:text-gray-700 px-2 py-1" %>
+        <% end %>
       </div>
+      <h1 class="text-2xl font-semibold text-gray-900">
+        <%= @workshop_log.workshop&.title || "Workshop Log" %>
+      </h1>
 
       <!-- Workshop Info -->
       <div class="grid grid-cols-1 md:grid-cols-2 gap-6 text-sm text-gray-800">
         <div>
           <p><span class="font-semibold text-gray-700">Person:</span>
-            <% if @workshop_log.user && allowed_to?(:show?, @workshop_log.user) %>
-              <%= link_to @workshop_log.user.name,
-                          @workshop_log.user.person ? person_path(@workshop_log.user.person) : user_path(@workshop_log.user),
+            <% if @workshop_log.created_by && allowed_to?(:show?, @workshop_log.created_by) %>
+              <%= link_to @workshop_log.created_by.name,
+                          @workshop_log.created_by.person ? person_path(@workshop_log.created_by.person) : user_path(@workshop_log.created_by),
                           class: "btn btn-secondary-outline" %>
             <% else %>
-              <%= @workshop_log.user&.name || "-" %>
+              <%= @workshop_log.created_by&.name || "-" %>
             <% end %>
           </p>
           <p>
@@ -52,9 +49,9 @@
       <!-- Assets -->
       <%= render "assets/display_gallery_media", resource: @workshop_log %>
 
-      <!-- Participant Counts -->
+      <!-- Participant counts -->
       <div>
-        <h2 class="text-lg font-semibold text-gray-800 mb-2">Participant Counts</h2>
+        <h2 class="text-lg font-semibold text-gray-800 mb-2">Participant counts</h2>
         <div class="overflow-x-auto">
           <table class="min-w-full border border-gray-300 rounded-lg overflow-hidden">
             <thead>
@@ -154,6 +151,4 @@
         </div>
       <% end %>
 
-    </div>
-  </div>
 </div>

@@ -13,17 +13,18 @@ RSpec.describe "People can submit a workshop log" do
         @form_builder = FormBuilder.create!(windows_type_id: @windows_type.id, name: "The form")
         @form_builder.forms.create!
 
-        create(:workshop, title: 'The best workshop in the world', windows_type: adult_window, featured: true)
-        create(:workshop, title: 'The best workshop on mars', windows_type: adult_window, featured: true)
+        create(:workshop, :published, title: 'The best workshop in the world', windows_type: adult_window, featured: true)
+        create(:workshop, :published, title: 'The best workshop on mars', windows_type: adult_window, featured: true)
 
         @organization = create(:organization, name: "Test Project", windows_type_id: @windows_type.id)
-        OrganizationUser.create!(user: @user, organization: @organization, position: :default)
+        person = Person.find_by(user: @user)
+        Affiliation.create!(person: person, organization: @organization, position: :default)
 
         sign_in @user
         visit new_workshop_log_path
       end
       it "successfully submits a complete workshop log" do
-        expect(page).to have_content("New Workshop log")
+        expect(page).to have_content("New workshop log")
         select "The best workshop in the world", from: "workshop_log[workshop_id]"
         select @organization.name, from: "workshop_log[organization_id]"
         fill_in "workshop_log[date]", with: 1.day.ago.strftime("%m-%d-%Y")

@@ -10,10 +10,10 @@ RSpec.describe "/workshop_variation_ideas", type: :request do
   let(:valid_attributes) do
     {
       name: "Mindful Art Variation",
-      body: "A variation focusing on mindfulness and relaxation.",
+      rhino_body: "<p>A variation focusing on mindfulness and relaxation.</p>",
       youtube_url: "https://www.youtube.com/watch?v=example",
       permission_given: true,
-      publish_preferences: "public",
+      author_credit_preference: "full_name",
       workshop_id: workshop.id,
       organization_id: organization.id,
       windows_type_id: windows_type.id,
@@ -79,7 +79,7 @@ RSpec.describe "/workshop_variation_ideas", type: :request do
             post workshop_variation_ideas_path, params: { workshop_variation_idea: valid_attributes }
           }.to change(WorkshopVariationIdea, :count).by(1)
 
-          expect(response).to redirect_to(workshop_variation_ideas_path)
+          expect(response).to redirect_to(workshop_variation_idea_path(WorkshopVariationIdea.last))
         end
 
         it "sends a notification" do
@@ -113,7 +113,7 @@ RSpec.describe "/workshop_variation_ideas", type: :request do
               params: { workshop_variation_idea: { name: "Updated Name" } }
 
         expect(idea.reload.name).to eq("Updated Name")
-        expect(response).to redirect_to(workshop_variation_ideas_path)
+        expect(response).to redirect_to(workshop_variation_idea_path(idea))
       end
     end
 
@@ -173,7 +173,7 @@ RSpec.describe "/workshop_variation_ideas", type: :request do
                  params: { workshop_variation_idea: valid_attributes }
           }.to change(WorkshopVariationIdea, :count).by(1)
 
-          expect(response).to redirect_to(root_path)
+          expect(response).to redirect_to(workshop_variation_idea_path(WorkshopVariationIdea.last))
         end
       end
 

@@ -4,7 +4,7 @@ class PersonDecorator < ApplicationDecorator
   end
 
   def detail(length: nil)
-    text = organization_people.active.map { |op| "#{op.title.presence || op.position}, #{op.organization.name}" }.join(", ")
+    text = affiliations.active.map { |affiliation| "#{affiliation.title.presence || affiliation.position}, #{affiliation.organization.name}" }.join(", ")
     length ? text&.truncate(length) : text
   end
 
@@ -25,22 +25,84 @@ class PersonDecorator < ApplicationDecorator
     "missing.png"
   end
 
+  def affiliated_end_date
+    return nil if affiliations.active.exists?
+    affiliations.maximum(:end_date)
+  end
+
+  def facilitator_end_date
+    facilitator_affiliations = affiliations.where("title LIKE ?", "%Facilitator%")
+    return nil if facilitator_affiliations.active.exists?
+    facilitator_affiliations.maximum(:end_date)
+  end
+
   def member_since_year
-    member_since ? member_since.year : nil
+    facilitator_since_date&.year
+  end
+
+  def member_since_earlier_than_facilitator_affiliations?
+    earliest_facilitator = affiliations.where("title LIKE ?", "%Facilitator%").minimum(:start_date)
+    member_since.present? && earliest_facilitator.present? && member_since.beginning_of_month < earliest_facilitator.beginning_of_month
+  end
+
+  def member_since_earlier_than_all_affiliations?
+    earliest = affiliations.minimum(:start_date)
+    member_since.present? && earliest.present? && member_since.beginning_of_month < earliest.beginning_of_month
+  end
+
+  def member_since_differs_from_facilitator_affiliations?
+    earliest_facilitator = affiliations.where("title LIKE ?", "%Facilitator%").minimum(:start_date)
+    member_since.present? && earliest_facilitator.present? && member_since.beginning_of_month != earliest_facilitator.beginning_of_month
+  end
+
+  def member_since_differs_from_all_affiliations?
+    earliest = affiliations.minimum(:start_date)
+    member_since.present? && earliest.present? && member_since.beginning_of_month != earliest.beginning_of_month
   end
 
   def badges
-    years = member_since ? (Time.zone.now.year - member_since.year) : 0
+    @badges ||= compute_badges
+  end
+
+  def facilitator_since_date
+    @facilitator_since_date ||= begin
+      facilitator_affiliations = affiliations.where("title LIKE ?", "%Facilitator%")
+      facilitator_affiliations.minimum(:start_date) || member_since
+    end
+  end
+
+  def affiliated_since_date
+    @affiliated_since_date ||= affiliations.minimum(:start_date)
+  end
+
+  private
+
+  def compute_badges
+    earliest = facilitator_since_date
+    years = earliest ? (Time.zone.now.year - earliest.year) : nil
     badges = []
-    badges << [ "Legacy Facilitator (10+ years)", "yellow" ] if years >= 10
-    badges << [ "Seasoned Facilitator (3-10 years)", DomainTheme.bg_class_for(:people) ] if member_since.present? && years >= 3
-    badges << [ "New Facilitator (<3 years)", "green" ] if member_since.present? && years < 3
-    badges << [ "Spotlighted Facilitator", "gray" ] if stories_as_spotlighted_facilitator
-    badges << [ "Events Attended", DomainTheme.bg_class_for(:events) ] if user && user.events.any?
-    badges << [ "Workshop Author", DomainTheme.bg_class_for(:workshops) ] if user && user.workshops.any? # indigo
-    badges << [ "Story Author", DomainTheme.bg_class_for(:stories) ] if user && user.stories_as_creator.any? # pink
-    badges << [ "Sector Leader", DomainTheme.bg_class_for(:sectors) ] if sectorable_items.where(is_leader: true).any?
-    badges << [ "Blog Contributor", "orange" ] if true # || user.respond_to?(:blogs) && user.blogs.any? # red
+    badges << badge("Legacy Facilitator (10+ years)", :legacy_facilitator) if years && years >= 10
+    badges << badge("Seasoned Facilitator (3-10 years)", :seasoned_facilitator) if years && years.between?(3, 9)
+    badges << badge("New Facilitator (<3 years)", :new_facilitator) if years && years < 3
+    badges << badge("Spotlighted Facilitator", :spotlighted_facilitator) if stories_as_spotlighted_facilitator.any?
+    badges << badge("Events Attended", :events) if user&.events&.any?
+    badges << badge("Workshop Author", :workshops) if user&.workshops&.any?
+    badges << badge("Workshop Variation Author", :workshop_variations) if user&.workshop_variations_as_creator&.any?
+    badges << badge("Story Author", :stories) if user&.stories_as_creator&.any?
+    badges << badge("Sector Leader", :sectors) if sectorable_items.where(is_leader: true).any?
+    badges << badge("Blog Contributor", :blog_contributor) if blog_contributor?
+    if affiliated_since_date.present? && affiliated_since_date != facilitator_since_date
+      badges << badge("Affiliated since #{affiliated_since_date.strftime('%B %Y')}", :affiliated_person)
+    end
     badges
+  end
+
+  def badge(label, key)
+    {
+      label: label,
+      bg: DomainTheme.bg_class_for(key, intensity: 100),
+      text: DomainTheme.text_class_for(key),
+      border: DomainTheme.border_class_for(key)
+    }
   end
 end

@@ -18,8 +18,8 @@ RSpec.describe "/tutorials", type: :request do
   # adjust the attributes here as well.
   let(:valid_attributes) do
     {
-      title: "How to Use the Dashboard",
-      body: "<p>This tutorial walks through the main dashboard features.</p>",
+      title: "How to Use the Home Page",
+      body: "<p>This tutorial walks through the main home page features.</p>",
       youtube_url: "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
     }
   end
@@ -77,9 +77,9 @@ RSpec.describe "/tutorials", type: :request do
         }.to change(Tutorial, :count).by(1)
       end
 
-      it "redirects to the tutorials index" do
+      it "redirects to the created tutorial" do
         post tutorials_url, params: { tutorial: valid_attributes }
-        expect(response).to redirect_to(tutorials_url)
+        expect(response).to redirect_to(tutorial_url(Tutorial.last))
       end
     end
 
@@ -101,7 +101,7 @@ RSpec.describe "/tutorials", type: :request do
     context "with valid parameters" do
       let(:new_attributes) do
         valid_attributes.merge(
-          title: "Updated: How to Use the Dashboard"
+          title: "Updated: How to Use the Home Page"
         )
       end
 
@@ -112,11 +112,11 @@ RSpec.describe "/tutorials", type: :request do
         skip("Add assertions for updated state")
       end
 
-      it "redirects to the tutorials index" do
+      it "redirects to the updated tutorial" do
         tutorial = Tutorial.create! valid_attributes
         patch tutorial_url(tutorial), params: { tutorial: new_attributes }
         tutorial.reload
-        expect(response).to redirect_to(tutorials_url)
+        expect(response).to redirect_to(tutorial_url(tutorial))
       end
     end
 

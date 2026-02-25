@@ -1,6 +1,7 @@
 class EventRegistrationsController < ApplicationController
   require "csv"
 
+  skip_before_action :authenticate_user!, only: [ :show ]
   before_action :set_event_registration, only: [ :show, :edit, :update, :destroy ]
 
   def index
@@ -10,6 +11,11 @@ class EventRegistrationsController < ApplicationController
     filtered = base_scope.search_by_params(params)
     @event_registrations_count = filtered.size
     @event_registrations = filtered.includes(:registrant, :event).paginate(page: params[:page], per_page: per_page)
+    @events = Event.order(start_date: :desc)
+    @filtered_event = Event.find_by(id: params[:event_id]) if params[:event_id].present?
+    @registrants = authorized_scope(Person.left_joins(:user))
+                     .order(Arel.sql("LOWER(people.first_name), LOWER(people.last_name), LOWER(users.email), LOWER(people.email_2), LOWER(people.email)"))
+
 
     respond_to do |format|
       format.html
@@ -46,7 +52,7 @@ class EventRegistrationsController < ApplicationController
         noticeable: @event_registration,
         kind: "event_registration_confirmation",
         recipient_role: :person,
-        recipient_email: current_user.email,
+        recipient_email: @event_registration.registrant.preferred_email,
         notification_type: 0)
       NotificationServices::CreateNotification.call(
         noticeable: @event_registration,
@@ -57,7 +63,7 @@ class EventRegistrationsController < ApplicationController
 
       respond_to do |format|
         format.html {
-          redirect_to event_registrations_path,
+          redirect_to @event_registration,
             notice: "Registration created."
         }
       end
@@ -73,11 +79,23 @@ class EventRegistrationsController < ApplicationController
 
   def update
     authorize! @event_registration
-    if @event_registration.update(event_registration_params)
-      redirect_to event_registrations_path, notice: "Registration was successfully updated.", status: :see_other
+    @event_registration.assign_attributes(event_registration_update_params)
+    @event_registration.comments.select(&:new_record?).each { |c| c.created_by = current_user; c.updated_by = current_user }
+    @event_registration.comments.select(&:changed?).each { |c| c.updated_by = current_user }
+
+    if @event_registration.save
+      respond_to do |format|
+        format.turbo_stream
+        format.html { redirect_to @event_registration, notice: "Registration was successfully updated.", status: :see_other }
+      end
     else
-      set_form_variables
-      render :edit, status: :unprocessable_content
+      respond_to do |format|
+        format.turbo_stream { head :unprocessable_content }
+        format.html do
+          set_form_variables
+          render :edit, status: :unprocessable_content
+        end
+      end
     end
   end
 
@@ -99,20 +117,28 @@ class EventRegistrationsController < ApplicationController
            .or(Event.where(id: @event_registration.event_id))
            .distinct
            .order(start_date: :desc)
-    @registrants = User.active.includes(:person).order("people.first_name, people.last_name")
   end
 
   private
 
   def set_event_registration
-    @event_registration = EventRegistration.find(params[:id])
+    @event_registration = EventRegistration.includes(comments: [ :created_by, :updated_by ]).find(params[:id])
   end
 
   # Strong parameters
   def event_registration_params
     params.require(:event_registration).permit(
-      :event_id, :registrant_id
+      :event_id, :registrant_id, :status,
+      comments_attributes: [ :id, :body, :_destroy ]
     )
+  end
+
+  def event_registration_update_params
+    if allowed_to?(:manage?, with: EventRegistrationPolicy)
+      event_registration_params
+    else
+      params.require(:event_registration).permit(:status)
+    end
   end
 
   def csv_export(registrations)
@@ -124,7 +150,7 @@ class EventRegistrationsController < ApplicationController
         csv << [
           r&.first_name.to_s,
           r&.last_name.to_s,
-          r&.email.to_s,
+          r&.preferred_email.to_s,
           e&.title.to_s
         ]
       end

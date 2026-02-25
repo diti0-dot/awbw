@@ -4,8 +4,10 @@ class WorkshopVariationsController < ApplicationController
     authorize!
 
     base_scope = WorkshopVariation.includes(:workshop).joins(:workshop).where(workshops: { published: true })
-    filtered = base_scope.order("workshop_variations.created_at DESC, workshops.title, workshop_variations.name")
+    filtered = base_scope.search_by_params(params)
+                         .order("workshop_variations.created_at DESC, workshops.title, workshop_variations.name")
     @workshop_variations = filtered.paginate(page: params[:page], per_page: 25).decorate
+    @workshop_variations_count = filtered.count == base_scope.count ? base_scope.count : "#{filtered.count}/#{base_scope.count}"
   end
 
   def new
@@ -31,7 +33,6 @@ class WorkshopVariationsController < ApplicationController
         if params[:promote_idea_assets] == "true"
           @workshop_variation.attach_assets_from_idea!
         end
-
         success = true
       end
     rescue ActiveRecord::RecordInvalid, ActiveRecord::RecordNotSaved => e
@@ -41,7 +42,13 @@ class WorkshopVariationsController < ApplicationController
 
     if success
       flash[:notice] = "Workshop Variation has been created."
-      redirect_to workshop_variations_path(sort: "created")
+      if params[:from] == "workshop_show" && @workshop_variation.workshop.present?
+        redirect_to workshop_path(@workshop_variation.workshop, anchor: "variation-#{@workshop_variation.id}") and return
+      elsif allowed_to?(:show?, @workshop_variation)
+        redirect_to @workshop_variation and return
+      else
+        redirect_to root_path and return
+      end
     else
       set_form_variables
       flash.now[:alert] = "Unable to save the workshop variation."
@@ -55,7 +62,7 @@ class WorkshopVariationsController < ApplicationController
     track_view(@workshop_variation)
 
     @workshop = @workshop_variation.workshop.decorate
-    @bookmark = current_user.bookmarks.find_by(bookmarkable: @workshop)
+    @bookmark = current_user&.bookmarks&.find_by(bookmarkable: @workshop)
     @new_bookmark = @workshop.bookmarks.build
     @quotes = @workshop.quotes
     @workshop_variations = @workshop.workshop_variations
@@ -65,7 +72,6 @@ class WorkshopVariationsController < ApplicationController
   def edit
     @workshop_variation = WorkshopVariation.find(params[:id])
     authorize! @workshop_variation
-    @workshops = Workshop.published.order(:title)
     set_form_variables
   end
 
@@ -75,7 +81,7 @@ class WorkshopVariationsController < ApplicationController
 
     if @workshop_variation.update(workshop_variation_params)
       flash[:notice] = "Workshop Variation updated successfully."
-      redirect_to workshop_variations_path
+      redirect_to @workshop_variation
     else
       set_form_variables
       flash[:alert] = "Unable to update Workshop Variation."
@@ -96,8 +102,6 @@ class WorkshopVariationsController < ApplicationController
   # end
 
   def set_form_variables
-    workshops = authorized_scope(Workshop.all)
-    @workshops = workshops.order(:title)
     @workshop = @workshop_variation.workshop || params[:workshop_id].present? &&
       Workshop.where(id: params[:workshop_id]).last
     @workshop_variation_idea = params[:workshop_variation_idea_id].present? &&
@@ -106,8 +110,8 @@ class WorkshopVariationsController < ApplicationController
 
   def workshop_variation_params
     params.require(:workshop_variation).permit(
-      [ :name, :body, :published, :position, :youtube_url, :created_by_id,
-        :organization_id, :workshop_id, :workshop_variation_idea_id
+      [ :name, :rhino_body, :published, :publicly_visible, :position, :youtube_url, :created_by_id,
+        :organization_id, :workshop_id, :workshop_variation_idea_id, :author_credit_preference
       ]
     )
   end

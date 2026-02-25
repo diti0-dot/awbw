@@ -28,7 +28,10 @@
 }
 
 /* Used to generate classes from `domain_theme.rb`*/
-@source inline("{hover:,}bg-{indigo,purple,teal,violet,orange,rose,blue,sky,emerald,slate,lime,stone,green}-{50,{100..900..100},950}");
+
+@source inline("{hover:,}bg-{indigo,purple,teal,violet,orange,rose,blue,sky,emerald,slate,lime,stone,amber,green,yellow,gray,cyan,fuchsia,pink}-{50,{100..900..100},950}");
+@source inline("border-{indigo,purple,teal,violet,orange,rose,blue,sky,emerald,slate,lime,stone,amber,green,yellow,gray,cyan,fuchsia,pink}-{200,300}");
+@source inline("text-{indigo,purple,teal,violet,orange,rose,blue,sky,emerald,slate,lime,stone,amber,green,yellow,gray,cyan,fuchsia,pink}-{50,{100..900..100},950}");
 
 /* ✅ Safelist dynamically generated colors */
 @layer utilities {
@@ -78,6 +81,13 @@
   }
 }
 
+/* Optional fields get a subtle gray background */
+.optional input,
+.optional select,
+.optional textarea {
+  @apply bg-gray-100;
+}
+
 .readonly {
   @apply bg-gray-100 text-gray-500 cursor-not-allowed border-gray-300;
 }
@@ -88,8 +98,19 @@
   @apply bg-gray-100 text-gray-500 cursor-not-allowed border-gray-300;
 }
 
+/* Native select placeholder styling (grey prompt text + custom caret) */
+select.select-placeholder {
+  color: #9ca3af !important;
+  font-size: 0.875rem !important;
+}
+
 .is-active {
   @apply text-primary border-b-2 border-primary font-bold bg-gray-100;
+}
+
+/* Highlight for tag blocks when their checkbox is selected in "Explore by combination" */
+.tags-combination-selected {
+  @apply ring-2 ring-lime-600 bg-lime-200;
 }
 
 /* Prevent pag breaks on images when printing  */
@@ -125,10 +146,16 @@
   position: relative;
 }
 
+.password-field {
+  -webkit-appearance: none;
+  appearance: none;
+}
+
 .toggle-password {
   position: absolute;
   right: 12px;
-  top: 36px; /* aligns with input vertically */
+  top: 50%;
+  transform: translateY(-50%);
   background: none;
   border: none;
   padding: 0;
@@ -140,15 +167,35 @@
   color: #374151; /* gray-700 */
 }
 
-/* Hide Chrome / Edge / Safari (macOS + iOS) password reveal icon */
-input[type="password"]::-webkit-textfield-decoration-container {
+/* Hide Chrome / Edge / Safari built-in password reveal icon (we use our own toggle) */
+input[type="password"]::-ms-reveal {
   display: none;
 }
 
 input[type="password"]::-webkit-credentials-auto-fill-button {
   display: none !important;
-  visibility: hidden;
-  pointer-events: none;
+}
+
+/* Safari fix: Ensure password field has proper height */
+.password-field {
+  height: 2.5rem; /* Matches Tailwind's default input height with p-2 */
+}
+
+/* Truncated comment textareas - compact at rest, expand on hover/focus */
+textarea.comment-truncated {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  height: 2rem;
+  transition: height 0.2s ease, white-space 0s;
+}
+
+textarea.comment-truncated:hover,
+textarea.comment-truncated:focus {
+  white-space: pre-wrap;
+  height: auto;
+  min-height: 4rem;
+  overflow: auto;
 }
 
 /* Swiper equal height slides */
@@ -163,4 +210,48 @@ input[type="password"]::-webkit-credentials-auto-fill-button {
   .prose[data-print-options-images-value="false"] img {
     display: none !important;
   }
+}
+
+/* Centered rich text content (e.g. event header) */
+.rhino-centered {
+  text-align: center;
+}
+
+.rhino-centered figure,
+.rhino-centered action-text-attachment {
+  display: block;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.rhino-centered img {
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.rhino-centered ul,
+.rhino-centered ol,
+.rhino-centered blockquote,
+.rhino-centered table,
+.rhino-centered pre {
+  text-align: left;
+}
+
+/* Event register/deregister buttons (!important needed to override inline styles) */
+.event-register-btn:hover {
+  color: rgb(170, 46, 0) !important;
+  background-color: white !important;
+}
+
+.event-deregister-btn:hover {
+  background-color: rgb(170, 46, 0) !important;
+  color: white !important;
+}
+
+/* Turbo progress bar */
+.turbo-progress-bar {
+  height: 7px;
+  background-color: #0076ff;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+  border-radius: 0 2px 2px 0;
 }

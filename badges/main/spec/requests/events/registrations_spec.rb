@@ -1,7 +1,7 @@
 require "rails_helper"
 
 RSpec.describe "Events::Registrations", type: :request do
-  let(:user) { create(:user) }
+  let(:user) { create(:user, :with_person) }
   let(:event) { create(:event) }
 
   before { sign_in user }
@@ -10,7 +10,7 @@ RSpec.describe "Events::Registrations", type: :request do
 
   describe "POST /events/:event_id/registrations" do
     context "when successful" do
-      xit "creates a registration and returns turbo stream" do  # TODO - fix the destroy action (it's 500'ing maybe to do w policy?)
+      it "creates a registration and returns turbo stream" do
         expect {
           post event_registrant_registration_path(event_id: event.id),
             headers: turbo_headers
@@ -32,7 +32,7 @@ RSpec.describe "Events::Registrations", type: :request do
           .and_return([ "Cannot register" ])
       end
 
-      xit "returns turbo stream with alert" do  # TODO - fix the destroy action (it's 500'ing maybe to do w policy?)
+      it "returns turbo stream with alert" do
         post event_registrant_registration_path(event_id: event.id),
           headers: turbo_headers
 
@@ -45,9 +45,9 @@ RSpec.describe "Events::Registrations", type: :request do
 
   describe "DELETE /events/:event_id/registrations" do
     context "when registration exists" do
-      let!(:registration) { create(:event_registration, event: event, registrant: user) }
+      let!(:registration) { create(:event_registration, event: event, registrant: user.person) }
 
-      xit "destroys registration and returns turbo stream" do  # TODO - fix the destroy action (it's 500'ing maybe to do w policy?)
+      it "destroys registration and returns turbo stream" do
         expect {
           delete event_registrant_registration_path(event_id: event.id),
             headers: turbo_headers
@@ -60,7 +60,7 @@ RSpec.describe "Events::Registrations", type: :request do
     end
 
     context "when registration does not exist" do
-      xit "returns turbo stream with alert" do # TODO - fix the destroy action (it's 500'ing maybe to do w policy?)
+      it "returns turbo stream with alert" do
         delete event_registrant_registration_path(event_id: event.id),
           headers: turbo_headers
 
@@ -71,7 +71,7 @@ RSpec.describe "Events::Registrations", type: :request do
     end
 
     context "when destroy fails" do
-      let!(:registration) { create(:event_registration, event: event, registrant: user) }
+      let!(:registration) { create(:event_registration, event: event, registrant: user.person) }
 
       before do
         allow_any_instance_of(EventRegistration)
@@ -82,7 +82,7 @@ RSpec.describe "Events::Registrations", type: :request do
           .and_return([ "Cannot delete" ])
       end
 
-      xit "returns turbo stream with alert" do  # TODO - fix the destroy action (it's 500'ing maybe to do w policy?)
+      it "returns turbo stream with alert" do
         delete event_registrant_registration_path(event_id: event.id),
           headers: turbo_headers
 

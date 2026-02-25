@@ -1,3 +1,4 @@
+<% content_for(:page_bg_class, "admin-or-owner-or-member") %>
 <div class="min-h-screen py-8">
   <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
     <div class="bg-white border border-gray-200 rounded-xl shadow-lg hover:shadow-xl transition-shadow duration-200 p-6 space-y-6">
@@ -19,7 +20,7 @@
       <!-- Workshop Info -->
       <div class="grid grid-cols-1 md:grid-cols-2 gap-6 text-sm text-gray-800">
         <div>
-          <p><span class="font-semibold text-gray-700">Person:</span> <%= @workshop_log.user&.name || "—" %></p>
+          <p><span class="font-semibold text-gray-700">Person:</span> <%= @workshop_log.created_by&.name || "—" %></p>
           <p><span class="font-semibold text-gray-700">Organization:</span> <%= @workshop_log.organization&.name || "—" %></p>
           <p><span class="font-semibold text-gray-700">Workshop Type:</span> <%= @workshop_log.workshop&.windows_type&.short_name || "—" %></p>
         </div>
@@ -33,9 +34,9 @@
       <!-- Assets -->
       <%= render "assets/display_gallery_media", resource: @workshop_log %>
 
-      <!-- Participant Counts -->
+      <!-- Participant counts -->
       <div>
-        <h2 class="text-lg font-semibold text-gray-800 mb-2">Participant Counts</h2>
+        <h2 class="text-lg font-semibold text-gray-800 mb-2">Participant counts</h2>
         <div class="overflow-x-auto">
           <table class="min-w-full border border-gray-300 rounded-lg overflow-hidden">
             <thead>

@@ -2,13 +2,14 @@
   <%= simple_form_for(workshop_variation_idea, html: { multipart: true }) do |f| %>
     <%= f.hidden_field :created_by_id, value: f.object.created_by_id || current_user&.id %>
     <%= f.hidden_field :updated_by_id, value: current_user&.id %>
+    <%= hidden_field_tag :from, params[:from] if params[:from].present? %>
     <% promoted_to_variation = f.object.workshop_variations.any? %>
     <% if promoted_to_variation %>
       <%= f.hidden_field :windows_type_id, value: f.object.windows_type_id %>
       <%= f.hidden_field :workshop_id, value: f.object.workshop_id %>
       <%= f.hidden_field :organization_id, value: f.object.organization_id %>
       <%= f.hidden_field :title, value: f.object.title %>
-      <%= f.hidden_field :body, value: f.object.body %>
+      <%= f.hidden_field :rhino_body, value: f.object.rhino_body %>
       <%= f.hidden_field :youtube_url, value: f.object.youtube_url %>
       <%= f.hidden_field :permission_given, value: f.object.permission_given %>
       <div class="admin-only bg-yellow-100 m-3 p-3">
@@ -34,19 +35,18 @@
     <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
       <div>
         <%= f.input :workshop_id,
-                    as: :select,
-                    collection: @workshops,
-                    label_method: :type_name,
-                    value_method: :id,
-                    label: "Workshop",
-                    prompt: "Select a Workshop",
-                    required: true,
-                    disabled: promoted_to_variation,
-                    selected: params[:workshop_id].presence || f.object.workshop_id,
-                    input_html: { value: params[:workshop_id].presence || f.object.workshop_id,
-                                  class: "block w-full rounded-md border-gray-300 shadow-sm focus:ring-blue-500
-                                  focus:border-blue-500 #{ 'readonly' if promoted_to_variation }" },
-                    label_html: { class: "block text-sm font-medium text-gray-700 mb-1" } %>
+          collection: f.object.workshop.present? ? [[ f.object.workshop.title, f.object.workshop.id]] : [],
+          include_blank: true,
+          required: true,
+          input_html: {
+            data: {
+              controller: "remote-select",
+              remote_select_model_value: "workshop"
+            }
+          },
+          prompt: "Search by title",
+          label: "Workshop",
+          label_html: { class: "block text-sm font-medium text-gray-700 mb-1 #{ 'readonly' if promoted_to_variation}" } %>
       </div>
       <div>
         <%= f.input :windows_type_id,
@@ -58,7 +58,7 @@
                     } %>
       </div>
       <div>
-        <% if current_user.person&.organization_people&.count != 1 %>
+        <% if current_user.person&.affiliations&.count != 1 %>
           <%= f.input :organization_id,
                       as: :select,
                       collection: @organizations,
@@ -79,23 +79,27 @@
         <% end %>
       </div>
     </div>
-    <div class="mt-3 mb-6">
-      <%= f.input :body,
-                  as: :text,
-                  required: true,
-                  label: "Share a little bit about your workshop variation, how you modified the workshop to fit your population/setting/facilitation style, and/or anything about how the workshop was received by participants, things you would do differently next time, etc.",
-                  hint: "(HTML allowed)",
-                  disabled: promoted_to_variation,
-                  input_html: { rows: 10,
-                                class: ("readonly" if promoted_to_variation) } %>
-    </div>
+
+    <% if promoted_to_variation %>
+      <div class="mt-3 mb-6"><%= workshop_variation_idea.rhino_body %></div>
+    <% else %>
+      <div class="form-group <%= 'has-error' if f.object.errors[:rhino_body].present? %>">
+        <%= rhino_editor(f, :body,
+                      label: "Tell us about your workshop variation. Please share how you adapted the workshop to fit your population, setting, and/or facilitation style. We also invite you to share participant feedback, insights on how it was received, and any ideas for changes you might make in the future.") %>
+
+        <% if f.object.errors[:rhino_body].present? %>
+          <div class="text-danger mt-1 text-sm">Field <%= f.object.errors[:rhino_body].first %></div>
+        <% end %>
+      </div>
+    <% end %>
+
     <div class="flex my-6 gap-4">
-      <%= f.input :publish_preferences,
+      <%= f.input :author_credit_preference,
                   as: :select,
                   required: true,
-                  collection: StoryIdea::PUBLISH_PREFERENCES,
+                  collection: AuthorCreditable::IDEA_FORM_OPTIONS,
                   include_blank: "Select a preference",
-                  selected: f.object.publish_preferences %>
+                  selected: f.object.author_credit_preference %>
       <%= f.input :youtube_url,
                   as: :text,
                   label: "YouTube link <span class='text-normal text-sm text-gray-400'>(optional)</span>".html_safe,
@@ -139,7 +143,7 @@
         </div>
       </div>
     <% end %>
-    <%= render "shared/form_image_fields", f: f, include_primary_asset: true unless promoted_to_variation %>
+    <%= render "shared/form_image_fields", f: f, include_primary_asset: false unless promoted_to_variation %>
     <div class="action-buttons mt-8 flex justify-center gap-3 pt-6">
       <% if allowed_to?(:destroy?, f.object) && f.object. workshop_variations.none? && !promoted_to_variation %>
         <span class="admin-only bg-blue-100 p-3">

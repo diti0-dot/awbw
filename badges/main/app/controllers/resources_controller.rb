@@ -1,5 +1,5 @@
 class ResourcesController < ApplicationController
-  include ExternallyRedirectable, AhoyTracking
+  include ExternallyRedirectable, AhoyTracking, TagAssignable
   skip_before_action :authenticate_user!, only: [ :index, :show ]
 
   def index
@@ -38,7 +38,7 @@ class ResourcesController < ApplicationController
   end
 
   def edit
-    @resource = Resource.includes(user: :person).find(resource_id_param).decorate
+    @resource = Resource.includes(created_by: :person).find(resource_id_param).decorate
     authorize! @resource
     set_form_variables
 
@@ -51,7 +51,7 @@ class ResourcesController < ApplicationController
 
   def show
     @resource = Resource.includes(
-      :user,
+      :created_by,
       :bookmarks,
       primary_asset:  :file_attachment,
       downloadable_asset:  :file_attachment,
@@ -79,7 +79,7 @@ class ResourcesController < ApplicationController
     end
 
     if success
-      redirect_to resources_path
+      redirect_to @resource
     else
       @resource = @resource.decorate
       set_form_variables
@@ -91,7 +91,7 @@ class ResourcesController < ApplicationController
   def update
     @resource = Resource.find(params[:id])
     authorize! @resource
-    @resource.user ||= current_user
+    @resource.created_by ||= current_user
     success = false
 
     Resource.transaction do
@@ -106,7 +106,7 @@ class ResourcesController < ApplicationController
 
     if success
       flash[:notice] = "Resource updated."
-      redirect_to resources_path
+      redirect_to @resource
     else
       set_form_variables
       flash[:alert] = "Failed to update Resource."
@@ -121,13 +121,6 @@ class ResourcesController < ApplicationController
     redirect_to resources_path, notice: "Resource was successfully destroyed."
   end
 
-  def search
-    authorize!
-    process_search
-    @sortable_fields = Resource::PUBLISHED_KINDS
-    render :index
-  end
-
   def download
     @resource = Resource.find(params[:resource_id])
     authorize! @resource
@@ -139,7 +132,7 @@ class ResourcesController < ApplicationController
     else
       if params[:from] == "resources_index"
         path = resources_path
-      elsif params[:from] == "dashboard_index"
+      elsif params[:from] == "home_index"
         path = root_path
       else
         resource_path(params[:resource_id])
@@ -156,7 +149,7 @@ class ResourcesController < ApplicationController
     @resource.build_downloadable_asset if @resource.downloadable_asset.blank?
     @resource.gallery_assets.build
     @windows_types = WindowsType.all
-    @authors = User.active.or(User.where(id: @resource.user_id))
+    @authors = authorized_scope(User.has_access.or(User.where(id: @resource.created_by_id)))
                    .includes(:person)
                    .order("people.first_name, people.last_name")
                    .map { |u| [ u.full_name, u.id ] }
@@ -166,24 +159,9 @@ class ResourcesController < ApplicationController
         .published
         .order(:position, :name)
         .group_by(&:category_type)
-        .select { |type, _| type.nil? || type.published? }
+        .select { |type, _| type.nil? || (type.published? && !type.story_specific? && !type.profile_specific?) }
         .sort_by { |type, _| type&.name.to_s.downcase }
     @sectors = Sector.published.order(:name)
-  end
-
-  def assign_associations(resource)
-    selected_category_ids = Array(params[:resource][:category_ids]).reject(&:blank?).map(&:to_i)
-    resource.categories = Category.where(id: selected_category_ids)
-
-    selected_sector_ids = Array(params[:resource][:sector_ids]).reject(&:blank?).map(&:to_i)
-    resource.sectors = Sector.where(id: selected_sector_ids)
-    resource.save!
-  end
-
-  def process_search
-    @params = search_params
-    @query = search_params[:query]
-    @resources = Search.new.search(search_params, current_user).paginate(page: params[:search][:page])
   end
 
   def resource_id_param
@@ -205,14 +183,10 @@ class ResourcesController < ApplicationController
   def load_forms
     form = @resource.form
     if form
-      @user_form = Report.new(user: current_user, owner: @resource)
+      @user_form = Report.new(created_by: current_user, owner: @resource)
       form.form_fields.where(status: 1).each do |field|
         @user_form.report_form_field_answers.build(form_field: field)
       end
     end
-  end
-
-  def search_params
-    params[:search]
   end
 end

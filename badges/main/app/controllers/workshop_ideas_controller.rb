@@ -5,9 +5,10 @@ class WorkshopIdeasController < ApplicationController
     authorize!
     per_page = params[:number_of_items_per_page].presence || 25
     base_scope = authorized_scope(WorkshopIdea.includes(:workshops))
-    filtered = base_scope.search(params.slice(:title, :author_name))
+    filtered = base_scope.search(params.slice(:title, :created_by_id, :author_name))
     @workshop_ideas_count = filtered.size
     @workshop_ideas = filtered.paginate(page: params[:page], per_page: per_page).decorate
+    @users = User.has_access.includes(:person).references(:person).order(Arel.sql("LOWER(people.first_name), LOWER(people.last_name), LOWER(users.email), LOWER(people.email_2), LOWER(people.email)"))
   end
 
   def show
@@ -33,8 +34,8 @@ class WorkshopIdeasController < ApplicationController
         notification_type: 0)
 
       flash[:notice] = "Workshop idea was successfully created."
-      if allowed_to?(:index?, WorkshopIdea)
-        redirect_to workshop_ideas_path
+      if allowed_to?(:show?, @workshop_idea)
+        redirect_to @workshop_idea
       else
         redirect_to root_path
       end
@@ -53,7 +54,7 @@ class WorkshopIdeasController < ApplicationController
   def update
     authorize! @workshop_idea
     if @workshop_idea.update(workshop_idea_params)
-      redirect_to workshop_ideas_path, notice: "Workshop idea was successfully updated.", status: :see_other
+      redirect_to @workshop_idea, notice: "Workshop idea was successfully updated.", status: :see_other
     else
       set_form_variables
       render :edit, status: :unprocessable_content
@@ -69,16 +70,17 @@ class WorkshopIdeasController < ApplicationController
   # Optional hooks for setting variables for forms or index
   def set_form_variables
     @age_ranges = Category.includes(:category_type).where("category_types.name = 'AgeRange'").pluck(:name)
-    @potential_series_workshops = Workshop.published.order(:title)
+    @potential_series_workshops = authorized_scope(Workshop.published).includes(:windows_type).order(:title)
     @sectors = Sector.published
     @windows_types = WindowsType.all
+    @users = User.has_access.includes(:person).references(:person).order(Arel.sql("LOWER(people.first_name), LOWER(people.last_name), LOWER(users.email), LOWER(people.email_2), LOWER(people.email)"))
     @categories_grouped =
       Category
         .includes(:category_type)
         .published
         .order(:position, :name)
         .group_by(&:category_type)
-        .select { |type, _| type.nil? || type.published? }
+        .select { |type, _| type.nil? || (type.published? && !type.story_specific? && !type.profile_specific?) }
         .sort_by { |type, _| type&.name.to_s.downcase }
     @workshop_idea.build_primary_asset if @workshop_idea.primary_asset.blank?
     @workshop_idea.gallery_assets.build
@@ -93,7 +95,7 @@ class WorkshopIdeasController < ApplicationController
   # Strong parameters
   def workshop_idea_params
     params.require(:workshop_idea).permit(
-      :title, :staff_notes,
+      :title, :staff_notes, :author_credit_preference,
       :created_by_id, :updated_by_id, :windows_type_id,
       :time_closing, :time_creation, :time_demonstration,
       :time_hours, :time_intro, :time_minutes,

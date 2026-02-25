@@ -1,3 +1,31 @@
+puts "Creating Persons and Affiliations for seed users…"
+[
+  User.find_by(email: "umberto.user@example.com"),
+  User.find_by(email: "amy.user@example.com")
+].compact.each do |user|
+  next if user.person.present?
+
+  person = Person.create!(
+    first_name: user.first_name,
+    last_name: user.last_name,
+    email: user.email,
+    created_by: user,
+    updated_by: user,
+    profile_is_searchable: true
+  )
+  user.update!(person: person)
+
+  org = Organization.all.sample
+  next unless org
+
+  Affiliation.create!(
+    person: person,
+    organization: org,
+    position: :leader,
+    start_date: 1.year.ago.to_date
+  )
+end
+
 puts "Creating CommunityNews…"
 [
   "Workshop Spotlight: Building Confidence Through Art",
@@ -10,36 +38,46 @@ puts "Creating CommunityNews…"
   "Partner Site Success Story",
   "New Resources Added to the Library",
   "How Creativity Builds Connection"
-].each do |title|
+].each_with_index do |title, i|
+  visibility = if i < 3
+    { published: true, featured: true }
+  elsif i < 6
+    { published: true, publicly_visible: true, publicly_featured: true }
+  else
+    { published: [ true, true, false ].sample, featured: [ true, false ].sample,
+      publicly_visible: [ true, false ].sample, publicly_featured: [ true, false ].sample }
+  end
+
+  body_content = Faker::Lorem.paragraph(sentence_count: 6)
   CommunityNews.where(title: title)
                .first_or_create!(
-                  body: Faker::Lorem.paragraph(sentence_count: 6),
-                  featured: [ true, false ].sample,
-                  published: [ true, true, true, false ].sample,
-                  author_id: User.all.sample.id,
-                  created_by_id: User.first.id,
-                  updated_by_id: User.first.id,
-                  organization_id: Organization.all.sample.id,
-                  windows_type_id: WindowsType.all.sample.id,
+                  rhino_body: "<p>#{body_content}</p>",
+                  author_id: User.all.sample&.id,
+                  created_by_id: User.first&.id,
+                  updated_by_id: User.first&.id,
+                  organization_id: Organization.all.sample&.id,
+                  windows_type_id: WindowsType.all.sample&.id,
                   created_at: Time.current - rand(1..60).days,
-                  updated_at: Time.current - rand(1..30).days
+                  updated_at: Time.current - rand(1..30).days,
+                  **visibility
                 )
 end
 
 puts "Creating new StoryIdeas…"
 10.times do |i|
+  body_content = Faker::Lorem.paragraph(sentence_count: 10)
   StoryIdea.create!(
-    body: Faker::Lorem.paragraph(sentence_count: 10),
-    publish_preferences: StoryIdea::PUBLISH_PREFERENCES.sample,
+    rhino_body: "<p>#{body_content}</p>",
+    author_credit_preference: AuthorCreditable::AUTHOR_CREDIT_PREFERENCES.sample,
     permission_given: true,
     external_workshop_title: [ nil, nil, "Community Art Night", "Healing Arts Circle" ].sample,
-    organization_id: Organization.all.sample.id,
+    organization_id: Organization.all.sample&.id,
     workshop_id: Workshop.all.sample&.id,
-    windows_type_id: WindowsType.all.sample.id,
+    windows_type_id: WindowsType.all.sample&.id,
     youtube_url: [ nil, nil, "https://youtube.com/watch?v=dQw4w9WgXcQ",
                   "https://youtube.com/watch?v=abcd1234xyz" ].sample,
-    created_by_id: User.first.id,
-    updated_by_id: User.first.id,
+    created_by_id: User.first&.id,
+    updated_by_id: User.first&.id,
     created_at: Time.current - rand(1..90).days,
     updated_at: Time.current - rand(1..40).days
   )
@@ -57,18 +95,26 @@ puts "Creating Stories…"
   "Community Coming Together Through Workshops",
   "Leadership in Action: A Facilitator’s Story",
   "When Art Opens a Door"
-].each do |title|
+].each_with_index do |title, i|
+  visibility = if i < 3
+    { published: true, featured: true }
+  elsif i < 6
+    { published: true, publicly_visible: true, publicly_featured: true }
+  else
+    { published: [ true, true, false ].sample, featured: [ true, false ].sample,
+      publicly_visible: [ true, false ].sample, publicly_featured: [ true, false ].sample }
+  end
+
+  body_content = Faker::Lorem.paragraph(sentence_count: 10)
   Story.where(title: title)
        .first_or_create!(
-          body: Faker::Lorem.paragraph(sentence_count: 10),
-          featured: [ true, false, false, false, false, false ].sample,
-          published: [ true, true, true, false ].sample,
+          rhino_body: "<p>#{body_content}</p>",
           permission_given: true,
           external_workshop_title: [ nil, nil, nil, nil, nil, nil, "Community Art Night", "Healing Arts Circle" ].sample,
-          organization_id: Organization.all.sample.id,
+          organization_id: Organization.all.sample&.id,
           workshop_id: [ nil, Workshop.all.sample&.id ].sample,
           story_idea_id: [ nil, nil, nil, nil, nil, nil, nil, nil, StoryIdea.all.sample&.id ].sample,
-          windows_type_id: WindowsType.all.sample.id,
+          windows_type_id: WindowsType.all.sample&.id,
           spotlighted_facilitator_id: [ nil, nil, nil, nil, Person.all.sample&.id ].sample,
           youtube_url: [
             nil,
@@ -76,10 +122,11 @@ puts "Creating Stories…"
             "https://youtube.com/watch?v=dQw4w9WgXcQ",
             "https://youtube.com/watch?v=abcd1234xyz"
           ].sample,
-          created_by_id: User.first.id,
-          updated_by_id: User.first.id,
+          created_by_id: User.first&.id,
+          updated_by_id: User.first&.id,
           created_at: Time.current - rand(1..90).days,
-          updated_at: Time.current - rand(1..40).days
+          updated_at: Time.current - rand(1..40).days,
+          **visibility
        )
 end
 
@@ -96,45 +143,64 @@ puts "Creating Events…"
   "Leaders in Creativity: Facilitator Roundtable",
   "Family Creative Expression Day",
   "Creative Safety & Support Workshop"
-].each do |title|
+].each_with_index do |title, i|
   start_date = Time.current + rand(5..60).days
   end_date   = start_date + rand(1..3).hours
   registration_close = start_date - rand(2..10).days
+
+  visibility = if i < 3
+    { published: true, featured: true }
+  elsif i < 6
+    { published: true, publicly_visible: true, publicly_featured: true }
+  else
+    { published: [ true, true, false ].sample, featured: [ true, false ].sample,
+      publicly_visible: [ true, false ].sample, publicly_featured: [ true, false ].sample }
+  end
+
   Event.where(title: title,
               start_date: start_date,
               end_date: end_date,)
        .first_or_create!(
-    description: Faker::Lorem.paragraph(sentence_count: 6),
-    featured: [ true, false ].sample,
-    published: [ false, false, true ].sample,
+    rhino_description: Faker::Lorem.paragraph(sentence_count: 6),
     registration_close_date: registration_close,
-    created_by_id: User.first.id,
+    created_by_id: User.first&.id,
     created_at: Time.current - rand(10..90).days,
-    updated_at: Time.current - rand(1..30).days
+    updated_at: Time.current - rand(1..30).days,
+    **visibility
   )
 end
 
 
 
 puts "Creating new Resources…"
-10.times do
+10.times do |i|
   kind = Resource::PUBLISHED_KINDS.sample
+
+  visibility = if i < 3
+    { published: true, featured: true }
+  elsif i < 6
+    { published: true, publicly_visible: true, publicly_featured: true }
+  else
+    { published: [ true, true, false ].sample, featured: [ true, false ].sample,
+      publicly_visible: [ true, false ].sample, publicly_featured: [ true, false ].sample }
+  end
+
   Resource.where(title: Faker::Book.title).first_or_create!(
-    text: Faker::Lorem.paragraph(sentence_count: 8),
+    body: Faker::Lorem.paragraph(sentence_count: 8),
     author: [ Faker::Name.name, nil ].sample,
     agency: [ Faker::Company.name, nil ].sample,
     kind: kind,
     url: [ "https://example.com/resource/#{SecureRandom.hex(4)}", nil ].sample,
-    featured: [ true, false ].sample,
-    inactive: [ true, false, false ].sample, # mostly false = active
+    inactive: false,
     legacy: [ true, false, false ].sample,
     legacy_id: rand(1000..9999),
-    ordering: rand(1..50),
+    position: rand(1..50),
     windows_type_id: WindowsType.all.sample&.id,
     workshop_id: Workshop.all.sample&.id,
-    user_id: User.all.sample&.id,
+    created_by_id: User.all.sample&.id,
     created_at: Time.current - rand(20..120).days,
-    updated_at: Time.current - rand(1..40).days
+    updated_at: Time.current - rand(1..40).days,
+    **visibility
   )
 end
 
@@ -144,13 +210,13 @@ faqs = [
     id: 1, question: "Why art?",
     answer: %(
 Art workshops provide a unique way to assist survivors of domestic violence in healing from the trauma of abuse, finding their voice, and building the courage to make healthy decisions for their future. For victims of domestic violence, art workshops provide a special "window" of support to share the complexity of their emotions, discover that they are not alone, and are not to blame for the violence. The art also helps survivors build healthy ways to handle anger and communicate non-violently.
-    ), published: true, ordering: 200
+    ), published: true, publicly_visible: true, ordering: 200
   },
   {
     id: 2, question: "What is the difference between the Windows Program and art therapy?",
     answer: %(
 The AWBW workshops offer a process of self-expression, self-exploration, and self-interpretation. Unlike art therapy, there is no therapist or other authority responsible for interpretation or diagnosis. Each participant is in charge of her own creative exploration. For women and children who have been living under the control of another human being for so long, a simple art experience can provide a powerful opportunity to notice for the first time that they have the freedom to decide what they want to create. By placing the authority in the hands of each participant, the Windows workshops create an environment where survivors effectively support each other and take leadership in finding their own solutions.
-    ), published: true, ordering: 190
+    ), published: true, publicly_visible: true, ordering: 190
   },
   {
     id: 4, question: "I work with survivors of domestic violence. How can I bring the AWBW Program to my organization?",
@@ -168,7 +234,7 @@ We welcome you to implement the <a href="/awbw/programs-adult_windows.phjp">Adul
     id: 7, question: "I am a survivor. How can I participate in the art program?",
     answer: %(
 You are welcome to participate in our <a href="/awbw/programs-sac.php">Survivor's Art Circle</a>, which provides support and encouragement for any domestic violence survivor wishing to use art as a healing tool. If you are in the Los Angeles area, you can attend monthly hands-on workshops with other survivors. If you are not in Los Angeles, you are welcome to participate in the online community of support. As part of the Survivor's Art Circle you will receive a monthly newsflash, and will be welcome to participate in group project ideas you can complete at home. You will also be welcome to participate in Survivor's Art Circle exhibition opportunities.
-    ), published: true, ordering: 140
+    ), published: true, publicly_visible: true, ordering: 140
   },
   {
     id: 12, question: "How do I get a scholarship for Leadership Training?",
@@ -221,7 +287,8 @@ faqs.each do |faq_data|
     faq.question = faq_data[:question]
     faq.answer   = faq_data[:answer]
     faq.published = faq_data[:published]
-    faq.ordering = faq_data[:ordering]
+    faq.publicly_visible = faq_data[:publicly_visible] || false
+    faq.position = faq_data[:ordering]
     faq.save!
   end
 end
@@ -232,7 +299,7 @@ workshops = [
      title: "Comfort Journals",
      windows_type_id: 1,
      full_name: "Rose Curtis",
-     user_id: User.find_by(first_name: "Rose", last_name: "Curtis")&.id,
+     created_by_id: User.find_by(first_name: "Rose", last_name: "Curtis")&.id,
      month: 11,
      year: 1996,
      description: "Gives participants a window of time to think about what brings them comfort and to collage related images onto a journal.",
@@ -246,12 +313,15 @@ workshops = [
      title: "Inner Self Portraits",
      windows_type_id: 2,
      full_name: "Rose Curtis",
-     user_id: User.find_by(first_name: "Rose", last_name: "Curtis")&.id,
+     created_by_id: User.find_by(first_name: "Rose", last_name: "Curtis")&.id,
      month: 9,
      year: 2009,
      description: "Helps children and teens discover more about their inner selves through mixed-media portrait creation.",
      tips: "<span class='EmailHeader'>Embodied art note…</span>",
      published: true,
+     featured: true,
+     publicly_visible: true,
+     publicly_featured: true,
      searchable: true,
      created_at: Time.zone.parse("2009-08-25 14:50:19"),
      updated_at: Time.zone.parse("2014-07-31 12:32:27")
@@ -260,7 +330,7 @@ workshops = [
      title: "New Year's Wish Marker",
      windows_type_id: 1,
      full_name: "Cathy Salser",
-     user_id: User.find_by(first_name: "Cathy", last_name: "Salser")&.id,
+     created_by_id: User.find_by(first_name: "Cathy", last_name: "Salser")&.id,
      month: 12,
      year: 1996,
      description: "A relaxing collage-based visioning activity for the upcoming year.",
@@ -273,11 +343,12 @@ workshops = [
      title: "Gratitude Mandalas",
      windows_type_id: 2,
      full_name: "Maria Lopez",
-     user_id: User.find_by(first_name: "Maria", last_name: "Lopez")&.id,
+     created_by_id: User.find_by(first_name: "Maria", last_name: "Lopez")&.id,
      month: 5,
      year: 2012,
      description: "Participants create mandalas focused on gratitude, calming the nervous system.",
      published: true,
+     featured: true,
      searchable: true,
      created_at: Time.zone.parse("2012-05-11 14:00:00"),
      updated_at: Time.zone.parse("2015-02-01 09:22:10")
@@ -286,11 +357,14 @@ workshops = [
      title: "Safe Spaces Collage",
      windows_type_id: 1,
      full_name: "Janelle Bishop",
-     user_id: User.find_by(first_name: "Janelle", last_name: "Bishop")&.id,
+     created_by_id: User.find_by(first_name: "Janelle", last_name: "Bishop")&.id,
      month: 2,
      year: 2015,
      description: "Explores what safety looks and feels like through imagery and symbolism.",
      published: true,
+     featured: true,
+     publicly_visible: true,
+     publicly_featured: true,
      searchable: true,
      created_at: Time.zone.parse("2015-02-02 10:10:10"),
      updated_at: Time.zone.parse("2016-01-20 08:01:22")
@@ -299,7 +373,7 @@ workshops = [
      title: "Strength Shields",
      windows_type_id: 2,
      full_name: "Tanya Nguyen",
-     user_id: User.find_by(first_name: "Tanya", last_name: "Nguyen")&.id,
+     created_by_id: User.find_by(first_name: "Tanya", last_name: "Nguyen")&.id,
      month: 4,
      year: 2017,
      description: "Youth identify, draw, and claim their inner strengths using shield symbolism.",
@@ -312,11 +386,12 @@ workshops = [
      title: "Heart Mapping",
      windows_type_id: 1,
      full_name: "Clara James",
-     user_id: User.find_by(first_name: "Clara", last_name: "James")&.id,
+     created_by_id: User.find_by(first_name: "Clara", last_name: "James")&.id,
      month: 3,
      year: 2018,
      description: "Participants explore emotional landscapes by drawing and labeling heart maps.",
      published: true,
+     featured: true,
      searchable: true,
      created_at: Time.zone.parse("2018-03-14 09:40:00"),
      updated_at: Time.zone.parse("2019-05-11 16:02:10")
@@ -325,7 +400,7 @@ workshops = [
      title: "Calming Jars",
      windows_type_id: 3,
      full_name: "Rita Sanchez",
-     user_id: User.find_by(first_name: "Rita", last_name: "Sanchez")&.id,
+     created_by_id: User.find_by(first_name: "Rita", last_name: "Sanchez")&.id,
      month: 8,
      year: 2014,
      description: "A sensory activity that teaches emotional regulation through glitter jars.",
@@ -338,11 +413,14 @@ workshops = [
      title: "Identity Flags",
      windows_type_id: 2,
      full_name: "Samuel Brooks",
-     user_id: User.find_by(first_name: "Samuel", last_name: "Brooks")&.id,
+     created_by_id: User.find_by(first_name: "Samuel", last_name: "Brooks")&.id,
      month: 5,
      year: 2020,
      description: "Participants create symbolic flags representing identity, hopes, and values.",
      published: true,
+     featured: true,
+     publicly_visible: true,
+     publicly_featured: true,
      searchable: true,
      created_at: Time.zone.parse("2020-05-03 12:10:00"),
      updated_at: Time.zone.parse("2021-02-14 10:10:10")
@@ -350,7 +428,7 @@ workshops = [
   {
      title: "Hope Collage", windows_type_id: 1,
      full_name: "Lena White",
-     user_id: User.find_by(first_name: "Lena", last_name: "White")&.id,
+     created_by_id: User.find_by(first_name: "Lena", last_name: "White")&.id,
      month: 6, year: 2019,
      description: "Exploring hope through creative collage.",
      notes: "", tips: "", pub_issue: "V/6",
@@ -360,7 +438,7 @@ workshops = [
   {
      title: "Vision Boards", windows_type_id: 1,
      full_name: "Alicia Grant",
-     user_id: User.find_by(first_name: "Alicia", last_name: "Grant")&.id,
+     created_by_id: User.find_by(first_name: "Alicia", last_name: "Grant")&.id,
      month: 1, year: 2021,
      description: "Creating intention for the year using collage boards.",
      notes: "", tips: "", pub_issue: "VI/1",
@@ -370,7 +448,7 @@ workshops = [
   {
      title: "Emotions Wheel", windows_type_id: 3,
      full_name: "Ken Lo",
-     user_id: User.find_by(first_name: "Ken", last_name: "Lo")&.id,
+     created_by_id: User.find_by(first_name: "Ken", last_name: "Lo")&.id,
      month: 7, year: 2018,
      description: "Creating an expressive wheel of emotions.",
      notes: "", tips: "", pub_issue: "VII/4",
@@ -380,7 +458,7 @@ workshops = [
   {
      title: "Memory Boxes", windows_type_id: 2,
      full_name: "Nicole Hart",
-     user_id: User.find_by(first_name: "Nicole", last_name: "Hart")&.id,
+     created_by_id: User.find_by(first_name: "Nicole", last_name: "Hart")&.id,
      month: 9, year: 2013,
      description: "Participants decorate boxes to honor memories or transitions.",
      notes: "", tips: "", pub_issue: "III/7",
@@ -390,7 +468,7 @@ workshops = [
   {
      title: "Courage Cards", windows_type_id: 1,
      full_name: "Heather James",
-     user_id: User.find_by(first_name: "Heather", last_name: "James")&.id,
+     created_by_id: User.find_by(first_name: "Heather", last_name: "James")&.id,
      month: 10, year: 2011,
      description: "Small creative cards with affirmations and courage statements.",
      notes: "", tips: "", pub_issue: "III/5",
@@ -400,7 +478,7 @@ workshops = [
   {
      title: "Resilience Stones", windows_type_id: 1,
      full_name: "Barbara Kim",
-     user_id: User.find_by(first_name: "Barbara", last_name: "Kim")&.id,
+     created_by_id: User.find_by(first_name: "Barbara", last_name: "Kim")&.id,
      month: 3, year: 2016,
      description: "Painting stones with messages about resilience.",
      notes: "", tips: "", pub_issue: "VIII/1",
@@ -410,7 +488,7 @@ workshops = [
   {
      title: "Identity Trees", windows_type_id: 2,
      full_name: "Darius Lee",
-     user_id: User.find_by(first_name: "Darius", last_name: "Lee")&.id,
+     created_by_id: User.find_by(first_name: "Darius", last_name: "Lee")&.id,
      month: 2, year: 2014,
      description: "Participants draw trees where roots represent history and leaves represent hopes.",
      notes: "", tips: "", pub_issue: "IX/3",
@@ -420,17 +498,17 @@ workshops = [
   {
      title: "Story Stones", windows_type_id: 3,
      full_name: "Ayana Cole",
-     user_id: User.find_by(first_name: "Ayana", last_name: "Cole")&.id,
+     created_by_id: User.find_by(first_name: "Ayana", last_name: "Cole")&.id,
      month: 4, year: 2022,
      description: "Decorated stones used to tell collaborative stories.",
      notes: "", tips: "", pub_issue: "X/4",
-     misc1: "", misc2: "", published: true, searchable: true,
+     misc1: "", misc2: "", published: true, featured: true, searchable: true,
      created_at: Time.zone.parse("2022-04-04"), updated_at: Time.zone.parse("2023-01-01")
   },
   {
      title: "Grief Lanterns", windows_type_id: 1,
      full_name: "Sofia Garza",
-     user_id: User.find_by(first_name: "Sofia", last_name: "Garza")&.id,
+     created_by_id: User.find_by(first_name: "Sofia", last_name: "Garza")&.id,
      month: 10, year: 2020,
      description: "A mourning ritual using paper lanterns to honor losses.",
      notes: "", tips: "", pub_issue: "VI/9",
@@ -440,7 +518,7 @@ workshops = [
   {
      title: "Calm Breathing Books", windows_type_id: 2,
      full_name: "Miguel Ortiz",
-     user_id: User.find_by(first_name: "Miguel", last_name: "Ortiz")&.id,
+     created_by_id: User.find_by(first_name: "Miguel", last_name: "Ortiz")&.id,
      month: 6, year: 2015,
      description: "Folded books where each page guides a different calming breath.",
      notes: "", tips: "", pub_issue: "VIII/3",
@@ -450,7 +528,7 @@ workshops = [
   {
      title: "Vision Tunnels", windows_type_id: 3,
      full_name: "Harriet Wu",
-     user_id: User.find_by(first_name: "Harriet", last_name: "Wu")&.id,
+     created_by_id: User.find_by(first_name: "Harriet", last_name: "Wu")&.id,
      month: 1, year: 2023,
      description: "Paper tunnels layered with imagery representing goals for the year.",
      notes: "", tips: "", pub_issue: "XI/1",
@@ -494,7 +572,62 @@ workshops.each do |workshop|
 end
 puts "Done assigning categories and sectors."
 
-
-# Bookmark
-# Stories
-# # LeaderSpotlight
+puts "Creating Tutorials…"
+[
+  {
+    title: "Getting Started: Your First Workshop",
+    rhino_body: "A step-by-step guide to preparing and leading your first AWBW workshop.",
+    youtube_url: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+    published: true,
+    featured: true,
+    publicly_visible: true,
+    publicly_featured: true,
+    position: 1
+  },
+  {
+    title: "Trauma-Informed Facilitation Basics",
+    rhino_body: "Learn the foundations of trauma-informed facilitation for art-based healing workshops.",
+    youtube_url: "https://www.youtube.com/watch?v=jNQXAC9IVRw",
+    published: true,
+    featured: true,
+    publicly_visible: true,
+    publicly_featured: true,
+    position: 2
+  },
+  {
+    title: "Creating Safe Spaces for Art Expression",
+    rhino_body: "How to set up your workshop environment to foster safety, trust, and creative expression.",
+    youtube_url: "https://www.youtube.com/watch?v=9bZkp7q19f0",
+    published: true,
+    featured: true,
+    publicly_visible: true,
+    publicly_featured: true,
+    position: 3
+  },
+  {
+    title: "Working with Children and Youth",
+    rhino_body: "Techniques and tips for adapting workshops for younger participants.",
+    youtube_url: "https://www.youtube.com/watch?v=kJQP7kiw5Fk",
+    published: true,
+    featured: true,
+    position: 4
+  },
+  {
+    title: "Art Materials and Supply Management",
+    rhino_body: "A practical guide to choosing, organizing, and budgeting for art supplies.",
+    youtube_url: "https://www.youtube.com/watch?v=RgKAFK5djSk",
+    published: true,
+    featured: true,
+    position: 5
+  },
+  {
+    title: "Monthly Reporting Walkthrough",
+    rhino_body: "How to complete your monthly reports and share workshop outcomes with AWBW.",
+    youtube_url: "https://www.youtube.com/watch?v=JGwWNGJdvx8",
+    published: true,
+    featured: true,
+    position: 6
+  }
+].each do |tutorial_data|
+  Tutorial.where(title: tutorial_data[:title]).first_or_create!(tutorial_data)
+end

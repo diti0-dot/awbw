@@ -1,4 +1,18 @@
 class WorkshopVariationIdea < ApplicationRecord
+  include AuthorCreditable
+  include SearchCop
+  search_scope :search do
+    attributes :name, :body
+  end
+
+  def self.search_by_params(params)
+    results = is_a?(ActiveRecord::Relation) ? self : all
+    results = results.search(params[:query]) if params[:query].present?
+    results
+  end
+
+  has_rich_text :rhino_body
+
   belongs_to :created_by, class_name: "User"
   belongs_to :updated_by, class_name: "User"
   belongs_to :workshop
@@ -21,6 +35,10 @@ class WorkshopVariationIdea < ApplicationRecord
   validates :updated_by_id, presence: true
   validates :organization_id, presence: true
   validates :workshop_id, presence: true
+  validates :windows_type_id, presence: true
+  validates :author_credit_preference, presence: true
+  validates :permission_given, acceptance: true
+  validates :rhino_body, presence: true
 
   # Nested attributes
   accepts_nested_attributes_for :primary_asset, allow_destroy: true, reject_if: :all_blank

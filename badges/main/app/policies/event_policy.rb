@@ -23,10 +23,17 @@ class EventPolicy < ApplicationPolicy
     admin? || owner?
   end
 
+  def manage?
+    admin? || owner?
+  end
+
+  alias_rule :preview?, to: :edit?
+
   private
 
   def owner?
     return false unless authenticated?
+    return false unless record.is_a?(Event)
     record.created_by == user
   end
 
@@ -35,7 +42,7 @@ class EventPolicy < ApplicationPolicy
     if authenticated? # logged in users can see events they are registered for even if registration is closed
       relation.left_outer_joins(:registrants)
               .published
-              .where("registration_close_date IS NULL OR registration_close_date >= ? OR users.id = ?", Time.current, user.id)
+              .where("registration_close_date IS NULL OR registration_close_date >= ? OR people.id = ?", Time.current, user.person_id)
               .distinct
     else
       relation.publicly_visible

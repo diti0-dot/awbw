@@ -3,11 +3,12 @@ class DownloadableAsset < Asset
     "image/jpeg",
     "image/png",
     "image/gif",
+    "image/webp",
+    "image/heic",
+    "image/heif",
     "application/pdf",
-    "application/zip",
     "application/msword", # Word .doc
     "application/vnd.openxmlformats-officedocument.wordprocessingml.document", # Word .docx
-    "application/vnd.oasis.opendocument.text", # Word document .odt
-    "text/html"
+    "application/vnd.oasis.opendocument.text" # Word document .odt
   ].freeze
 end

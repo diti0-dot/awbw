@@ -7,6 +7,7 @@ RSpec.describe "workshop_ideas/index", type: :view do
 
   before(:each) do
     assign(:workshop_ideas, WorkshopIdeaDecorator.decorate_collection(paginated([ workshop_idea1, workshop_idea2 ])))
+    assign(:users, User.none)
     allow(view).to receive(:current_user).and_return(user)
   end
 
@@ -18,6 +19,6 @@ RSpec.describe "workshop_ideas/index", type: :view do
   it "renders a friendly message when no workshop_ideas exist" do
     assign(:workshop_ideas, paginated([]))
     render
-    expect(rendered).to match(/No Workshop ideas found/)
+    expect(rendered).to match(/No workshop ideas found/)
   end
 end

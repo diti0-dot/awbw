@@ -3,7 +3,7 @@ require 'rails_helper'
 RSpec.describe CommunityNews, type: :model do
   describe '.search' do
     let(:person) { create(:person, first_name: 'John', last_name: 'Doe') }
-    let(:user_with_person) { create(:user, person: person) }
+    let(:user_with_person) { person.user }
     let(:user_without_person) { create(:user, person: nil) }
 
     let!(:community_news_with_person) do
@@ -110,6 +110,28 @@ RSpec.describe CommunityNews, type: :model do
       end
     end
 
+    context 'when filtering by year' do
+      let!(:news_2025) do
+        create(:community_news, title: 'Old News', created_at: Date.new(2025, 6, 15))
+      end
+
+      let!(:news_2026) do
+        create(:community_news, title: 'New News', created_at: Date.new(2026, 3, 1))
+      end
+
+      it 'returns records from the specified year' do
+        results = CommunityNews.by_year('2025')
+        expect(results).to include(news_2025)
+        expect(results).not_to include(news_2026)
+      end
+
+      it 'returns records from a different year' do
+        results = CommunityNews.by_year('2026')
+        expect(results).to include(news_2026)
+        expect(results).not_to include(news_2025)
+      end
+    end
+
     context 'LEFT JOIN behavior' do
       it 'includes records without people in search results' do
         results = CommunityNews.search('Special')
@@ -131,6 +153,59 @@ RSpec.describe CommunityNews, type: :model do
         expect(results).to include(community_news_with_person)
         expect(results).to include(community_news_without_person)
       end
+    end
+  end
+
+  describe '.search_by_params' do
+    let(:person) { create(:person, first_name: 'John', last_name: 'Doe') }
+    let(:user_with_person) { person.user }
+
+    let!(:news_alpha) do
+      create(:community_news, :published,
+             title: 'Alpha Community Update',
+             author: user_with_person,
+             created_at: Date.new(2025, 6, 15))
+    end
+
+    let!(:news_beta) do
+      create(:community_news,
+             title: 'Beta Draft Article',
+             author: user_with_person,
+             created_at: Date.new(2026, 3, 1))
+    end
+
+    it 'returns all when no params' do
+      results = CommunityNews.search_by_params({})
+      expect(results).to include(news_alpha, news_beta)
+    end
+
+    it 'filters by title' do
+      results = CommunityNews.search_by_params(title: 'Alpha')
+      expect(results).to include(news_alpha)
+      expect(results).not_to include(news_beta)
+    end
+
+    it 'filters by published param' do
+      results = CommunityNews.search_by_params(published: 'true')
+      expect(results).to include(news_alpha)
+      expect(results).not_to include(news_beta)
+    end
+
+    it 'filters by year' do
+      results = CommunityNews.search_by_params(year: '2025')
+      expect(results).to include(news_alpha)
+      expect(results).not_to include(news_beta)
+    end
+
+    it 'ignores invalid year format' do
+      results = CommunityNews.search_by_params(year: 'abc')
+      expect(results).to include(news_alpha, news_beta)
+    end
+
+    it 'chains title and year filters' do
+      results = CommunityNews.search_by_params(title: 'Alpha', year: '2025')
+      expect(results).to include(news_alpha)
+      expect(results).not_to include(news_beta)
     end
   end
 end

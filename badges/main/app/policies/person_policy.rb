@@ -2,11 +2,11 @@ class PersonPolicy < ApplicationPolicy
   # See https://actionpolicy.evilmartians.io/#/writing_policies
 
   def index?
-    authenticated?
+    admin?
   end
 
   def show?
-    admin? || owner? || (authenticated? && record.published? && record.profile_is_searchable?)
+    admin? || owner?
   end
 
   def edit?
@@ -17,12 +17,20 @@ class PersonPolicy < ApplicationPolicy
     admin? || owner?
   end
 
+  def destroy?
+    admin? && record.persisted? && !has_associated_data?
+  end
+
+  def search?
+    admin?
+  end
+
   # Scoping
   # See https://actionpolicy.evilmartians.io/#/scoping
 
   relation_scope do |relation|
     next relation if admin?
-    relation.searchable # includes `profile_is_searchable`` and `published``
+    relation.searchable.with_active_affiliations
   end
 
   private
@@ -30,5 +38,11 @@ class PersonPolicy < ApplicationPolicy
   def owner?
     return false unless authenticated?
     record.user == user
+  end
+
+  def has_associated_data?
+    record.user.present? ||
+      record.affiliations.exists? ||
+      record.stories_as_spotlighted_facilitator.exists?
   end
 end

@@ -1,13 +1,20 @@
-<div class="<%= controller_name %>-index max-w-7xl mx-auto <%= DomainTheme.bg_class_for(controller_name.to_sym) %> border border-gray-200 rounded-xl shadow p-6">
+<% content_for(:page_bg_class, "public") %>
+<%= render "shared/public_welcome_banner" %>
+
+<div class="w-full max-w-7xl mx-auto <%= DomainTheme.bg_class_for(:tutorials) %> border border-gray-200 rounded-xl shadow p-6">
   <div class="w-full">
     <div class="flex items-start justify-between mb-6">
       <div class="pr-6">
-        <h2 class="text-3xl font-bold text-gray-900 mb-2">
-          Tutorials (<%= @count_display %>)
+        <h2 class="text-2xl font-semibold mb-2">
+          <%= Tutorial.model_name.human(count: 2) %>
         </h2>
 
         <p class="text-gray-600 max-w-2xl">
-          Step-by-step guides to help you get the most out of the platform
+          <% if user_signed_in? %>
+            Our library of step-by-step tutorials and informational videos designed to support your journey
+          <% else %>
+            A library of videos designed to introduce you to our work and the real-world impact shared by the community we serve
+          <% end %>
         </p>
       </div>
 
@@ -20,26 +27,18 @@
       </div>
     </div>
 
-    <%= render "search_boxes" rescue nil %>
+    <%= render "search_boxes" %>
 
-    <div class="overflow-x-auto">
-      <!-- Tutorials -->
-      <div class="space-y-16">
-        <% if @tutorials.any? %>
-          <% @tutorials.each do |tutorial| %>
-            <%= render "tutorial", tutorial: tutorial %>
+    <% result_src = tutorials_path + "?" + request.query_string %>
+
+    <%= turbo_frame_tag "tutorials_results", src: result_src do %>
+      <div class="bg-white rounded-lg shadow-md p-6 mt-4 animate-pulse">
+        <div class="space-y-4">
+          <% 3.times do %>
+            <div class="h-4 bg-gray-200 rounded w-3/4"></div>
           <% end %>
-
-          <!-- Pagination -->
-          <div class="pagination flex justify-center mt-12">
-            <%= tailwind_paginate @tutorials %>
-          </div>
-        <% else %>
-          <div class="text-gray-500 italic">
-            No tutorials found matching your filters.
-          </div>
-        <% end %>
+        </div>
       </div>
-    </div>
+    <% end %>
   </div>
 </div>

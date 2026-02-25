@@ -1,5 +1,7 @@
 class Workshop < ApplicationRecord
-  include Featureable, Publishable, TagFilterable, Trendable, WindowsTypeFilterable, RichTextSearchable
+  include AuthorCreditable
+  include Featureable, Publishable, RemoteSearchable, TagFilterable, Trendable, WindowsTypeFilterable, RichTextSearchable
+  include PunctuationStrippable
   include Rails.application.routes.url_helpers
   include ActionText::Attachable
   include ActiveModel::Dirty
@@ -22,7 +24,7 @@ class Workshop < ApplicationRecord
   end
 
   belongs_to :windows_type, optional: true
-  belongs_to :user, optional: true
+  belongs_to :created_by, class_name: "User", optional: true
   belongs_to :workshop_idea, optional: true
 
   has_many :bookmarks, as: :bookmarkable, dependent: :destroy
@@ -50,7 +52,7 @@ class Workshop < ApplicationRecord
            source: :category # needs to be after has_many :categorizable_items
   has_many :categories, through: :categorizable_items
   has_many :category_types, through: :categories
-  has_many :organizations, through: :user
+  has_many :organizations, through: :created_by
   has_many :quotes, through: :quotable_item_quotes
   has_many :resources, through: :workshop_resources, source: :resource
   has_many :sectors, through: :sectorable_items
@@ -137,9 +139,17 @@ class Workshop < ApplicationRecord
 
   # Scopes
   # See Featureable, Publishable, TagFilterable, Trendable, WindowsTypeFilterable, RichTextSearchable
-  scope :created_by_id, ->(created_by_id) { where(user_id: created_by_id) }
+  scope :created_by_id, ->(created_by_id) { where(created_by_id: created_by_id) }
   scope :legacy, -> { where(legacy: true) }
-  scope :title, ->(title) { where("workshops.title like ?", "%#{ title }%") }
+  scope :title, ->(title) {
+    spaced = "%#{ActiveRecord::Base.sanitize_sql_like(strip_punctuation_spaced(title))}%"
+    spaceless = "%#{ActiveRecord::Base.sanitize_sql_like(strip_punctuation_spaceless(title))}%"
+
+    spaced_expr = Arel::Nodes::SqlLiteral.new(strip_punctuation_sql_spaced("workshops.title"))
+    spaceless_expr = Arel::Nodes::SqlLiteral.new(strip_punctuation_sql_spaceless("workshops.title"))
+
+    where(spaced_expr.matches(spaced).or(spaceless_expr.matches(spaceless)))
+  }
   scope :order_by_date, ->(sort_order = "asc") do
     order(Arel.sql(<<~SQL.squish))
     COALESCE(
@@ -151,7 +161,6 @@ class Workshop < ApplicationRecord
     ) #{sort_order == "asc" ? "ASC" : "DESC"}
     SQL
   end
-  scope :title, ->(title) { where("workshops.title like ?", "%#{ title }%") }
   scope :windows_type_ids, ->(windows_type_ids) { where(windows_type_id: windows_type_ids) }
   scope :with_bookmarks_count, -> do
     left_joins(:bookmarks)
@@ -177,8 +186,7 @@ class Workshop < ApplicationRecord
   end
 
   def author_name
-    return unless user
-    user.full_name
+    created_by&.name || full_name.presence
   end
 
   def date
@@ -315,6 +323,8 @@ class Workshop < ApplicationRecord
 
     save!
   end
+
+  remote_searchable_by :title
 
   private
 

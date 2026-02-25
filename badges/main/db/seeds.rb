@@ -1,19 +1,53 @@
 puts "Creating Users…"
 
-# Admin
-User.find_or_create_by!(email: "umberto.user@example.com") do |user|
-  user.first_name = "Umberto"
-  user.last_name = "User"
-  user.password = "password"
-  user.super_user = true
+# Helper: case-insensitive find-or-create by name
+def find_or_create_by_name!(klass, name, **attrs, &block)
+  record = klass.where("LOWER(name) = LOWER(?)", name).first
+  return record if record
+
+  record = klass.new(name: name, **attrs)
+  block&.call(record)
+  record.save!
+  record
 end
 
+# Admin
+admin = User.find_or_create_by!(email: "umberto.user@example.com") do |user|
+  user.password = "password"
+  user.super_user = true
+  user.confirmed_at = Time.current
+end
+
+unless admin.person.present?
+  person = Person.create!(
+    first_name: "Umberto",
+    last_name: "User",
+    email: admin.email,
+    created_by: admin,
+    updated_by: admin,
+    profile_is_searchable: true
+  )
+  admin.update!(person: person)
+end
+
+
 # Non-Admin
-User.find_or_create_by!(email: "amy.user@example.com") do |user|
-  user.first_name = "Amy"
-  user.last_name = "User"
+amy = User.find_or_create_by!(email: "amy.user@example.com") do |user|
   user.password = "password"
   user.super_user = false
+  user.confirmed_at = Time.current
+end
+
+unless amy.person.present?
+  person = Person.create!(
+    first_name: "Amy",
+    last_name: "User",
+    email: amy.email,
+    created_by: amy,
+    updated_by: amy,
+    profile_is_searchable: true
+  )
+  amy.update!(person: person)
 end
 
 # Orphaned
@@ -22,12 +56,13 @@ User.find_or_create_by!(email: "orphaned_reports@awbw.org") do |user|
   user.last_name = "User"
   user.password = "password"
   user.super_user = false
+  user.confirmed_at = Time.current
 end
 
+# Only reset seed-user passwords, not every user in the database
+seed_emails = %w[umberto.user@example.com amy.user@example.com orphaned_reports@awbw.org]
 user_password = Devise::Encryptor.digest(User, "password")
-User.in_batches do |batch|
-  batch.update_all(encrypted_password: user_password)
-end
+User.where(email: seed_emails).update_all(encrypted_password: user_password)
 
 puts "Creating WindowsTypes…"
 adult_type = WindowsType.where(name: "ADULT WINDOWS")
@@ -46,8 +81,24 @@ FormBuilder.where(name: "Share a Story", windows_type: combined_type).first_or_c
 FormBuilder.where(name: "Family Workshop Log", windows_type: combined_type).first_or_create!(id: 5)
 
 puts "Creating OrganizationStatuses…"
-OrganizationStatus::ORGANIZATION_STATUSES.each_with_index do |status, idx|
-  OrganizationStatus.where(name: status).first_or_create!(id: idx + 1)
+OrganizationStatus::ORGANIZATION_STATUSES.each do |status|
+  OrganizationStatus.where(name: status).first_or_create!
+end
+
+puts "Creating Organization…"
+awbw_org = Organization.find_or_create_by!(name: ENV.fetch("ORGANIZATION_NAME", "AWBW")) do |org|
+  org.organization_status = OrganizationStatus.find_by!(name: "Active")
+end
+
+[ admin, amy ].each do |user|
+  next unless user.person.present? && user.person.affiliations.empty?
+
+  Affiliation.create!(
+    person: user.person,
+    organization: awbw_org,
+    position: :leader,
+    start_date: 1.year.ago.to_date
+  )
 end
 
 puts "Creating OrganizationObligations…"
@@ -57,7 +108,8 @@ end
 
 puts "Creating Sectors…"
 Sector::SECTOR_TYPES.each do |sector_type|
-  Sector.where(name: sector_type, published: true).first_or_create!
+  sector = find_or_create_by_name!(Sector, sector_type)
+  sector.update!(published: true) unless sector.published?
 end
 
 puts "Creating CategoryTypes/Categories…"
@@ -163,9 +215,73 @@ category_type_categories = [
   # ["Service Population", "Substance Abuse"], # now a Sector
   # ["Service Population", "Veterans & Military"], # now a Sector
 ]
-category_type_categories.each do |category_type_name, category_name, legacy_id|
-  unless category_type_name.nil?
-    metadata = CategoryType.find_or_create_by!(name: category_type_name)
-    metadata.categories.find_or_create_by!(name: category_name)
+category_type_categories.each do |category_type_name, category_name, _legacy_id|
+  next if category_type_name.nil?
+
+  ct = find_or_create_by_name!(CategoryType, category_type_name, published: true)
+  ct.update!(published: true) unless ct.published?
+
+  # Category names are globally unique, so look up globally first
+  cat = Category.where("LOWER(name) = LOWER(?)", category_name).first
+  if cat
+    # Reassign to correct type if orphaned or misassigned
+    cat.update!(category_type: ct) unless cat.category_type_id == ct.id
+  else
+    cat = ct.categories.create!(name: category_name, published: true)
   end
+  cat.update!(published: true) unless cat.published?
+end
+
+puts "Creating StoryPopulation CategoryType…"
+story_population_type = find_or_create_by_name!(CategoryType, "StoryPopulation") do |ct|
+  ct.display_text = "Who is this story about?"
+  ct.story_specific = true
+  ct.published = true
+end
+story_population_type.update!(display_text: "Who is this story about?", story_specific: true, published: true)
+
+%w[Adults Children Colleagues Community Families Self Teens].each do |name|
+  cat = Category.where("LOWER(name) = LOWER(?)", name).first
+  if cat
+    cat.update!(category_type: story_population_type) unless cat.category_type_id == story_population_type.id
+  else
+    cat = story_population_type.categories.create!(name: name, published: true)
+  end
+  cat.update!(published: true) unless cat.published?
+end
+
+puts "Creating WorkshopEnvironment CategoryType…"
+workshop_env_type = find_or_create_by_name!(CategoryType, "WorkshopEnvironment") do |ct|
+  ct.display_text = "Workshop Environments"
+  ct.story_specific = false
+  ct.profile_specific = true
+  ct.published = true
+end
+workshop_env_type.update!(display_text: "Workshop Environments", story_specific: false, profile_specific: true, published: true)
+
+%w[Shelter School Hospital Community\ Center After-School\ Program Virtual/Online Private\ Practice Other].each do |name|
+  cat = Category.where("LOWER(name) = LOWER(?)", name).first
+  if cat
+    cat.update!(category_type: workshop_env_type) unless cat.category_type_id == workshop_env_type.id
+  else
+    cat = workshop_env_type.categories.create!(name: name, published: true)
+  end
+  cat.update!(published: true) unless cat.published?
+end
+
+puts "Creating registerable Event with registration form…"
+reg_event = Event.find_or_create_by!(title: "AWBW Facilitator Training") do |event|
+  event.start_date = 2.months.from_now
+  event.end_date = 2.months.from_now + 3.hours
+  event.registration_close_date = 2.months.from_now - 1.day
+  event.published = true
+  event.publicly_visible = true
+  event.featured = true
+  event.cost = 150
+  event.created_by = User.find_by(email: "umberto.user@example.com")
+end
+
+unless reg_event.forms.exists?(name: EventRegistrationFormBuilder::FORM_NAME)
+  EventRegistrationFormBuilder.build!(reg_event)
+  puts "  → Registration form created for '#{reg_event.title}'"
 end

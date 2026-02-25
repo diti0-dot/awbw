@@ -1,8 +1,8 @@
 require "rails_helper"
 
 RSpec.describe "Event show page", type: :system do
-  let(:user)  { create(:user, time_zone: "Pacific Time (US & Canada)") }
-  let(:admin) { create(:user, :admin, time_zone: "Pacific Time (US & Canada)") }
+  let(:user)  { create(:user, :with_person, time_zone: "Pacific Time (US & Canada)") }
+  let(:admin) { create(:user, :with_person, :admin, time_zone: "Pacific Time (US & Canada)") }
 
   let(:event) do
     create(
@@ -55,7 +55,7 @@ RSpec.describe "Event show page", type: :system do
       expect(page).to have_text("My Event")
       expect(page).to have_text("A wonderful event")
       expect(page).to have_text(event.location.name)
-      expect(page).to have_link("Join online", href: event.videoconference_url)
+      expect(page).to have_text("Join on Example_zoom")
 
       # Decorator
       expect(page).to have_text("Cost: $10.99")
@@ -105,7 +105,7 @@ RSpec.describe "Event show page", type: :system do
 
     context "user registered" do
       before do
-        create(:event_registration, event: event, registrant: user)
+        create(:event_registration, event: event, registrant: user.person)
       end
 
       it "shows deregister button, badge, and calendar links" do
@@ -129,6 +129,36 @@ RSpec.describe "Event show page", type: :system do
         visit event_path(event)
 
         expect(page).to have_text("Registration closed")
+        expect(page).not_to have_button("Register")
+      end
+    end
+
+    context "event ended" do
+      before do
+        event.update!(end_date: 1.day.ago)
+      end
+
+      it "shows 'Event ended' and hides registration buttons" do
+        sign_in(user)
+        visit event_path(event)
+
+        expect(page).to have_text("Event ended")
+        expect(page).not_to have_button("Register")
+        expect(page).not_to have_button("De-register")
+      end
+    end
+
+    context "unpublished event with future registration date" do
+      before do
+        event.update!(published: false, publicly_visible: false)
+      end
+
+      it "shows 'Not published' instead of 'Registration closed' for admins" do
+        sign_in(admin)
+        visit event_path(event)
+
+        expect(page).to have_text("Not published")
+        expect(page).not_to have_text("Registration closed")
         expect(page).not_to have_button("Register")
       end
     end
@@ -158,7 +188,7 @@ RSpec.describe "Event show page", type: :system do
     end
 
     it "updates De-register back to Register after de-registering" do
-      create(:event_registration, event: event, registrant: user)
+      create(:event_registration, event: event, registrant: user.person)
 
       sign_in(user)
       visit event_path(event)
@@ -184,7 +214,7 @@ RSpec.describe "Event show page", type: :system do
       sign_in(user)
       visit event_path(event)
 
-      expect(page).to have_text("Registration Close Date")
+      expect(page).to have_text("Registration closes")
     end
 
     it "does not render when nil" do
@@ -193,7 +223,7 @@ RSpec.describe "Event show page", type: :system do
       sign_in(user)
       visit event_path(event)
 
-      expect(page).not_to have_text("Registration Close Date")
+      expect(page).not_to have_text("Registration closes")
     end
   end
 
@@ -222,6 +252,51 @@ RSpec.describe "Event show page", type: :system do
 
         expect(page).to have_css("img", minimum: 2)
       end
+    end
+  end
+
+  # --------------------------------------------------
+  # SOCIAL SHARE SIDEBAR
+  # --------------------------------------------------
+
+  describe "social share sidebar" do
+    it "renders share links with correct URLs" do
+      sign_in(user)
+      visit event_path(event)
+
+      encoded_path = CGI.escape("/events/#{event.id}")
+
+      # Share buttons point to correct share endpoints with event URL
+      linkedin = find("a[title='Share on LinkedIn']")
+      expect(linkedin[:href]).to include("linkedin.com/sharing/share-offsite/")
+      expect(linkedin[:href]).to include(encoded_path)
+
+      facebook = find("a[title='Share on Facebook']")
+      expect(facebook[:href]).to include("facebook.com/sharer/sharer.php")
+      expect(facebook[:href]).to include(encoded_path)
+
+      twitter = find("a[title='Share on X']")
+      expect(twitter[:href]).to include("twitter.com/intent/tweet")
+      expect(twitter[:href]).to include(encoded_path)
+
+      # Profile links
+      instagram = find("a[title='Follow on Instagram']")
+      expect(instagram[:href]).to include("instagram.com/awbworg")
+
+      youtube = find("a[title='Subscribe on YouTube']")
+      expect(youtube[:href]).to include("youtube.com/@awbworg")
+
+      # Print button
+      expect(page).to have_css("button[title='Print this page']")
+    end
+
+    it "renders share links for guests on public events" do
+      visit event_path(event)
+
+      expect(page).to have_css("a[title='Share on Facebook']")
+      expect(page).to have_css("a[title='Share on LinkedIn']")
+      expect(page).to have_css("a[title='Share on X']")
+      expect(page).to have_css("button[title='Print this page']")
     end
   end
 

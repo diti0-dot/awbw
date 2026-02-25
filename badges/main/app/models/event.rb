@@ -1,12 +1,15 @@
 class Event < ApplicationRecord
   include Featureable, Publishable, TagFilterable, Trendable, WindowsTypeFilterable
+  include ActionText::Attachable
 
+  has_rich_text :rhino_header
   has_rich_text :rhino_description
 
   belongs_to :created_by, class_name: "User", optional: true
   belongs_to :location, optional: true
   has_many :bookmarks, as: :bookmarkable, dependent: :destroy
   has_many :event_registrations, dependent: :destroy
+  has_many :forms, as: :owner, dependent: :destroy
 
   has_many :categorizable_items, dependent: :destroy, inverse_of: :categorizable, as: :categorizable
   has_many :sectorable_items, as: :sectorable, dependent: :destroy
@@ -17,7 +20,7 @@ class Event < ApplicationRecord
            as: :owner, class_name: "GalleryAsset", dependent: :destroy
   has_many :assets, as: :owner, dependent: :destroy
   # has_many through
-  has_many :registrants, through: :event_registrations, class_name: "User"
+  has_many :registrants, through: :event_registrations, class_name: "Person"
   has_many :categories, through: :categorizable_items
   has_many :sectors, through: :sectorable_items
 
@@ -51,8 +54,12 @@ class Event < ApplicationRecord
     stories
   end
 
+  def ended?
+    end_date < Time.current
+  end
+
   def registerable?
-    published && (registration_close_date.nil? || registration_close_date >= Time.current)
+    !ended? && (registration_close_date.nil? || registration_close_date >= Time.current)
   end
 
   def time_title
@@ -84,5 +91,21 @@ class Event < ApplicationRecord
       dollar_amount = dollar_amount.to_s.gsub(/[^\d.]/, "").to_f
       self.cost_cents = (dollar_amount.to_f * 100).round
     end
+  end
+
+  def attachable_content_type
+    "application/vnd.active_record.event"
+  end
+
+  def to_attachable_partial_path
+    "events/registration_button"
+  end
+
+  def to_trix_content_attachment_partial_path
+    "events/registration_button"
+  end
+
+  def to_partial_path
+    "events/registration_button"
   end
 end

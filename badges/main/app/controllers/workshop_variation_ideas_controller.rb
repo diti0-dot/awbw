@@ -5,11 +5,12 @@ class WorkshopVariationIdeasController < ApplicationController
   def index
     authorize!
     per_page = params[:number_of_items_per_page].presence || 25
-    workshop_variation_ideas = WorkshopVariationIdea.includes(:workshop, :created_by, :updated_by)
-    @workshop_variation_ideas_count = workshop_variation_ideas.size
-    @workshop_variation_ideas = workshop_variation_ideas.order(created_at: :desc)
-                                                        .paginate(page: params[:page], per_page: per_page)
-                                                        .decorate
+    base_scope = WorkshopVariationIdea.includes(:workshop, :created_by, :updated_by)
+    filtered = base_scope.search_by_params(params)
+    @workshop_variation_ideas_count = filtered.count == base_scope.count ? base_scope.count : "#{filtered.count}/#{base_scope.count}"
+    @workshop_variation_ideas = filtered.order(created_at: :desc)
+                                        .paginate(page: params[:page], per_page: per_page)
+                                        .decorate
   end
 
   def show
@@ -17,7 +18,7 @@ class WorkshopVariationIdeasController < ApplicationController
     track_view(@workshop_variation_idea)
 
     @workshop = (@workshop_variation_idea.workshop || Workshop.where(id: params[:workshop_id]).last)&.decorate
-    @bookmark = current_user.bookmarks.find_by(bookmarkable: @workshop)
+    @bookmark = current_user&.bookmarks&.find_by(bookmarkable: @workshop)
     @new_bookmark = @workshop.bookmarks.build
     @quotes = @workshop.quotes
     @workshop_variation_ideas = WorkshopVariationIdea.where(workshop: @workshop)
@@ -48,10 +49,12 @@ class WorkshopVariationIdeasController < ApplicationController
         notification_type: 0)
 
       flash[:notice] = "Workshop variation idea was successfully created."
-      if allowed_to?(:index?, WorkshopVariationIdea)
-        redirect_to workshop_variation_ideas_path
+      if params[:from] == "workshop_show" && @workshop_variation_idea.workshop.present?
+        redirect_to workshop_path(@workshop_variation_idea.workshop, anchor: "workshopVariations") and return
+      elsif allowed_to?(:show?, @workshop_variation_idea)
+        redirect_to @workshop_variation_idea and return
       else
-        redirect_to root_path
+        redirect_to root_path and return
       end
     else
       set_form_variables
@@ -62,7 +65,7 @@ class WorkshopVariationIdeasController < ApplicationController
   def update
     authorize! @workshop_variation_idea
     if @workshop_variation_idea.update(workshop_variation_idea_params)
-      redirect_to workshop_variation_ideas_path, notice: "Workshop variation idea was successfully updated.", status: :see_other
+      redirect_to @workshop_variation_idea, notice: "Workshop variation idea was successfully updated.", status: :see_other
     else
       set_form_variables
       render :edit, status: :unprocessable_content
@@ -85,17 +88,16 @@ class WorkshopVariationIdeasController < ApplicationController
     @workshop_variation_idea.build_primary_asset if @workshop_variation_idea.primary_asset.blank?
     @workshop_variation_idea.gallery_assets.build
 
-    @workshops = Workshop.published.order(:title)
-    @organizations = authorized_scope(Organization.all).order(:name)
+    @organizations = authorized_scope(Organization.all).order(:name).includes(:windows_type)
     @windows_types = WindowsType.order(:name)
-    @users = User.active.or(User.where(id: @workshop_variation_idea.created_by_id))
+    @users = authorized_scope(User.has_access.or(User.where(id: @workshop_variation_idea.created_by_id)))
                  .order(:first_name, :last_name)
   end
 
   def workshop_variation_idea_params
     params.require(:workshop_variation_idea).permit(
-      :name, :body, :youtube_url,
-      :permission_given, :publish_preferences,
+      :name, :rhino_body, :youtube_url,
+      :permission_given, :author_credit_preference,
       :organization_id, :windows_type_id, :workshop_id, :created_by_id, :updated_by_id,
       primary_asset_attributes: [ :id, :file, :_destroy ],
       gallery_assets_attributes: [ :id, :file, :_destroy ]

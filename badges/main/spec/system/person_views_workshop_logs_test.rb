@@ -13,16 +13,17 @@ RSpec.describe "People can view a submitted workshop log" do
         form_builder = FormBuilder.create!(windows_type_id: windows_type.id, name: "The form")
         form_builder.forms.create!
 
-        @workshop1 = create(:workshop, title: 'The best workshop in the world', windows_type: windows_type, featured: true)
-        @workshop2 = create(:workshop, title: 'Art therapy for beginners', windows_type: windows_type, featured: false)
+        @workshop1 = create(:workshop, :published, title: 'The best workshop in the world', windows_type: windows_type, featured: true)
+        @workshop2 = create(:workshop, :published, title: 'Art therapy for beginners', windows_type: windows_type, featured: false)
 
         @organization = create(:organization, name: "Test Project", windows_type_id: windows_type.id)
-        OrganizationUser.create!(user: @user, organization: @organization, position: :default, title: "Project user")
+        person = Person.find_by(user: @user)
+        Affiliation.create!(person: person, organization: @organization, position: :default, title: "Project user")
 
         @workshop_log1 = create(:workshop_log,
           workshop_id: @workshop1.id,
           organization_id: @organization.id,
-          user_id: @user.id,
+          created_by_id: @user.id,
           date: 1.day.ago,
           adults_first_time: 4,
           adults_ongoing: 10,
@@ -34,7 +35,7 @@ RSpec.describe "People can view a submitted workshop log" do
         @workshop_log2 = create(:workshop_log,
           workshop_id: @workshop2.id,
           organization_id: @organization.id,
-          user_id: @user.id,
+          created_by_id: @user.id,
           date: 2.months.ago,
           adults_first_time: 2,
           adults_ongoing: 8,
@@ -45,7 +46,7 @@ RSpec.describe "People can view a submitted workshop log" do
         )
 
         sign_in @user
-        visit "/workshop_logs?user_id=#{@user.id}"
+        visit "/workshop_logs?created_by_id=#{@user.id}"
       end
 
       it "verifies workshop log page has all required elements" do

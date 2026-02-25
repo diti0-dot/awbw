@@ -1,0 +1,38 @@
+<h1>We received your message</h1>
+
+<div style="text-align: left;">
+  <p>
+    <% if @user.present? %>
+      Hello <%= @user.first_name %>,
+    <% else %>
+      Hello <%= @contact_us[:first_name] %>,
+    <% end %>
+  </p>
+
+  <p>
+    Thank you for reaching out. A member of our team will review your inquiry and get back to you as soon as possible.
+  </p>
+</div>
+
+<div style="
+  background-color:#f3f4f6;
+  border-radius:6px;
+  padding:12px;
+  margin:16px 0;
+  text-align:left;
+">
+  <p>
+    <strong>Subject:</strong> <%= @contact_us[:subject] %>
+  </p>
+
+  <p>
+    <%= @contact_us[:message] %>
+  </p>
+</div>
+
+<div style="text-align: left;">
+  <p>
+    In community,<br>
+    AWBW Programs
+  </p>
+</div>

@@ -1,13 +1,27 @@
 class WorkshopVariation < ApplicationRecord
+  include AuthorCreditable
   include Publishable, Trendable
+  include SearchCop
+  search_scope :search do
+    attributes :name, :body
+  end
 
-  belongs_to :workshop
+  def self.search_by_params(params)
+    results = is_a?(ActiveRecord::Relation) ? self : all
+    results = results.search(params[:query]) if params[:query].present?
+    results
+  end
+
+  has_rich_text :rhino_body
+
+  belongs_to :workshop, optional: true
   belongs_to :organization, optional: true
   belongs_to :windows_type, optional: true
   belongs_to :created_by, class_name: "User", optional: true
   belongs_to :workshop_variation_idea, optional: true
   has_many :bookmarks, as: :bookmarkable, dependent: :destroy
   has_many :notifications, as: :noticeable, dependent: :destroy
+
   # Asset associations
   has_one :primary_asset, -> { where(type: "PrimaryAsset") },
           as: :owner, class_name: "PrimaryAsset", dependent: :destroy
@@ -18,7 +32,7 @@ class WorkshopVariation < ApplicationRecord
   has_many :assets, as: :owner, dependent: :destroy
 
   validates :name, presence: true, uniqueness: { scope: :workshop_id, case_sensitive: false }
-  validates :body, presence: true
+  validates :rhino_body, presence: true
 
   accepts_nested_attributes_for :primary_asset, allow_destroy: true, reject_if: :all_blank
   accepts_nested_attributes_for :gallery_assets, allow_destroy: true, reject_if: :all_blank
@@ -27,8 +41,6 @@ class WorkshopVariation < ApplicationRecord
 
   # Scopes
   # See Publishable, Trendable
-  scope :publicly_visible, -> { joins(:workshop).where("workshops.publicly_visible = ?", true)
-                                                .published } # overrides Publishable
 
   def description
     body

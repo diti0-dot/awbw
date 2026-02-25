@@ -24,18 +24,17 @@ module ApplicationHelper
   end
 
   def display_banner
-    banners = Banner.all
-    return unless banners.any?(&:show)
+    # Cache banners to avoid repeated queries during page render
+    @banners ||= Banner.published.select("id, content").to_a
+    return if @banners.empty?
 
-    safe_content_array = []
-
-    banners.published.each do |banner|
-      safe_content_array << sanitize(
+    safe_content_array = @banners.map { |banner|
+      sanitize(
         banner.content,
         tags: %w[a],
         attributes: %w[href]
       )
-    end
+    }
 
     safe_content = safe_content_array.join("<br>")
 
@@ -104,8 +103,7 @@ module ApplicationHelper
         "application/vnd.oasis.opendocument.presentation" => "fa-file-powerpoint",
 
         # Archives
-        "application/gzip" => "fa-file-archive",
-        "application/zip" => "fa-file-archive"
+        "application/gzip" => "fa-file-archive"
     }
 
     if mime
@@ -130,11 +128,24 @@ module ApplicationHelper
     ENV["RAILS_ENV"] == "staging" || Rails.env == "staging"
   end
 
-  def email_confirmation_icon(user)
-    if user.confirmed_at.present?
-      content_tag(:span, "confirmed", class: "text-green-600 ml-2 font-medium", title: "Email confirmed")
+  def favicon_file
+    case Rails.env.to_s
+    when "production"
+      "logo-circle.png"
+    when "staging"
+      "favicon.png"
     else
-      content_tag(:span, "unconfirmed", class: "text-red-600 ml-2 font-medium", title: "Email not confirmed")
+      "theme_default.png"
+    end
+  end
+
+  def email_confirmation_icon(user)
+    if user.unconfirmed_email.present?
+      content_tag(:span, "pending confirmation", class: "text-yellow-600 font-medium", title: "Email change pending confirmation")
+    elsif user.confirmed_at.present?
+      content_tag(:span, "confirmed", class: "text-green-600 font-medium", title: "Email confirmed")
+    else
+      content_tag(:span, "unconfirmed", class: "text-red-600 font-medium", title: "Email not confirmed")
     end
   end
 
@@ -142,8 +153,56 @@ module ApplicationHelper
     "Email #{email_confirmation_icon(user)}".html_safe
   end
 
+  # Returns checkbox options for the visibility filter dropdown.
+  # Each entry is [label, param_name, admin_only].
+  # Options adapt to the model's columns and the user's role.
+  def visibility_filter_options(model_class, admin:, authenticated:)
+    cols = model_class.column_names
+    options = []
+
+    if admin
+      options << [ "Published", :published, true ]
+      options << [ "Unpublished", :unpublished, true ]
+      options << [ "Featured", :featured, false ]             if cols.include?("featured")
+      options << [ "Publicly Visible", :publicly_visible, false ] if cols.include?("publicly_visible")
+      options << [ "Publicly Featured", :publicly_featured, false ] if cols.include?("publicly_featured")
+    elsif authenticated
+      options << [ "Not Featured", :not_featured, false ]     if cols.include?("featured")
+      options << [ "Featured", :featured, false ]             if cols.include?("featured")
+      options << [ "Publicly Visible", :publicly_visible, false ] if cols.include?("publicly_visible")
+      options << [ "Publicly Featured", :publicly_featured, false ] if cols.include?("publicly_featured")
+    else
+      options << [ "Not Publicly Featured", :not_publicly_featured, false ] if cols.include?("publicly_featured")
+      options << [ "Publicly Featured", :publicly_featured, false ]         if cols.include?("publicly_featured")
+    end
+
+    options
+  end
+
   # Fundamental US time zones only (for user preference dropdown).
   # Order: Eastern → Pacific, then Alaska, Hawaii, Arizona.
+  def default_organization_for_form(object)
+    return object.organization if object.organization.present?
+
+    if current_user.super_user?
+      Organization.find_by(name: ENV["ORGANIZATION_NAME"])
+    elsif current_user.person&.affiliations&.count == 1
+      current_user.person.primary_organization
+    end
+  end
+
+  def custom_caret_style
+    "background-image:url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%236b7280' d='M2 4l4 4 4-4'/%3E%3C/svg%3E\");background-position:right 0.75rem center;background-size:12px;background-repeat:no-repeat;"
+  end
+
+  def select_caret_class(blank:)
+    "w-full px-3 py-2 pr-10 border border-gray-300 rounded-lg appearance-none #{"select-placeholder" if blank}"
+  end
+
+  def select_caret_onchange
+    "if(this.value){this.classList.remove('select-placeholder')}else{this.classList.add('select-placeholder')}"
+  end
+
   def us_time_zone_fundamentals
     zone_names = [
       "Eastern Time (US & Canada)",

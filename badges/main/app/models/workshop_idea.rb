@@ -1,4 +1,6 @@
 class WorkshopIdea < ApplicationRecord
+  include AuthorCreditable
+
   belongs_to :created_by, class_name: "User"
   belongs_to :updated_by, class_name: "User"
   belongs_to :windows_type
@@ -79,6 +81,7 @@ class WorkshopIdea < ApplicationRecord
   def self.search(params)
     results = is_a?(ActiveRecord::Relation) ? self : all
     results = results.title(params[:title]) if params[:title].present?
+    results = results.where(created_by_id: params[:created_by_id]) if params[:created_by_id].present?
     results = results.author_name(params[:author_name]) if params[:author_name].present?
     results
   end

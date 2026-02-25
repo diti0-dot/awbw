@@ -60,6 +60,7 @@ RSpec.configure do |config|
   # instead of true.
   config.use_transactional_fixtures = true
   config.include Devise::Test::IntegrationHelpers, type: :request
+  config.include Devise::Test::IntegrationHelpers, type: :system
   config.include Devise::Test::ControllerHelpers, type: :view
   config.include Devise::Test::ControllerHelpers, type: :controller
 
@@ -89,10 +90,6 @@ RSpec.configure do |config|
   # config.filter_gems_from_backtrace("gem name")
 
   # ensure that warden is configured for running in test mode.
-
-  config.before(:each, type: :system) do
-    driven_by(:selenium_chrome_headless)
-  end
 
   config.before(:suite) { Warden.test_mode! }
   config.after { Warden.test_reset! }

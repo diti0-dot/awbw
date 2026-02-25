@@ -18,7 +18,7 @@ class WorkshopFromIdeaService
 
   def attributes_from_idea
     workshop_idea.attributes.slice(
-      "title", "windows_type_id", "age_range",
+      "title", "windows_type_id", "age_range", "author_credit_preference",
       "time_intro", "time_closing", "time_creation",
       "time_demonstration", "time_warm_up",
       "time_opening", "time_opening_circle"
@@ -56,7 +56,7 @@ class WorkshopFromIdeaService
       rhino_misc1_spanish: workshop_idea.rhino_misc1_spanish,
       rhino_misc2_spanish: workshop_idea.rhino_misc2_spanish,
       rhino_extra_field_spanish: workshop_idea.rhino_extra_field_spanish,
-      user_id: user.id,
+      created_by: user,
       workshop_idea_id: workshop_idea.id,
       month: workshop_idea.created_at.month,
       year: workshop_idea.created_at.year,

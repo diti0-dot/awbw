@@ -1,20 +1,14 @@
-<div class="workshop-variation-detail py-6 min-h-screen">
-  <div class="max-w-5xl mx-auto px-4">
+<% content_for(:page_bg_class, "admin-or-public-or-authpublished") %>
+<div class="<%= DomainTheme.bg_class_for(:workshop_variations) %> border border-gray-200 rounded-xl shadow p-6">
 
-    <div class="flex justify-end mb-6">
+    <div class="flex flex-wrap justify-end gap-2 mb-4">
+      <%= link_to "Home", root_path, class: "text-sm text-gray-500 hover:text-gray-700 px-2 py-1" %>
+      <%= link_to "Workshop", workshop_path(@workshop_variation.workshop, anchor: "workshop-variations"),
+                  class: "text-sm text-gray-500 hover:text-gray-700 px-2 py-1" %>
       <% if allowed_to?(:edit?, @workshop_variation) %>
-        <div class="p-1">
-          <%= link_to("Edit",
-                      edit_workshop_variation_path(@workshop_variation),
-                      class: "btn btn-primary-outline #{ "admin-only bg-blue-100" if allowed_to?(:manage?, WorkshopVariation) }") %>
-        </div>
+        <%= link_to "Edit", edit_workshop_variation_path(@workshop_variation),
+                    class: "#{ "admin-only bg-blue-100 " if allowed_to?(:manage?, WorkshopVariation) }text-sm text-gray-500 hover:text-gray-700 px-2 py-1" %>
       <% end %>
-      <div class="p-1">
-        <%= link_to("Back to Workshop",
-                    workshop_path(@workshop_variation.workshop, anchor: "workshop-variations"),
-                    class: "btn btn-secondary-outline") %>
-      </div>
-
     </div>
 
 
@@ -35,12 +29,22 @@
         <% end %>
       </h2>
 
-
-
       <!-- Author and Date -->
       <div class="flex flex-col gap-1">
         <div class="flex items-center text-gray-600 text-sm gap-2">
-          <span><%= @workshop_variation.created_by&.name %></span>
+          <span>
+            <% if @workshop_variation.author_credit_preference.present? %>
+              <%= @workshop_variation.author_credit %>
+            <% else %>
+              <% creator = @workshop_variation.created_by %>
+              <% display_name = @workshop_variation.workshop_variation_idea&.author_credit || creator&.name %>
+              <% if creator&.person && allowed_to?(:show?, creator.person, with: PersonPolicy) %>
+                <%= link_to display_name, person_path(creator.person), class: "text-blue-600 hover:underline" %>
+              <% else %>
+                <%= display_name %>
+              <% end %>
+            <% end %>
+          </span>
           <span class="<%= "border-l border-gray-400 pl-2" if @workshop_variation.created_by.present? %>">
             <%= @workshop_variation.created_at.strftime('%B %e, %Y') %>
           </span>
@@ -48,7 +52,7 @@
       </div>
 
       <!-- Primary Asset -->
-      <%= render "assets/display_assets", resource: @workshop_variation %>
+      <%= render "assets/display_assets", resource: @workshop_variation, link: true %>
 
       <!-- URL -->
       <% if @workshop_variation.youtube_url.present? %>
@@ -61,11 +65,6 @@
 
 
       <!-- Main Text -->
-      <div class="prose mx-auto leading-relaxed text-gray-800 text-left">
-        <%= sanitize(@workshop_variation.body,
-                     tags: %w(p br strong em a ul ol li), attributes: %w(href target)) %>
-      </div>
-
+      <%= @workshop_variation.rhino_body %>
     </div>
-  </div>
 </div>

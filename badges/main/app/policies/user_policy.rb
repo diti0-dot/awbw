@@ -7,10 +7,11 @@ class UserPolicy < ApplicationPolicy
   def create? = admin?
   def edit? = admin?
   def update? = admin?
-  def destroy? = record.persisted? && admin?
+  def destroy? = record.persisted? && admin? && record.person_id.blank? && !has_ahoy_records?
   def toggle_lock_status? = admin?
   def confirm_email? = admin?
   def send_welcome_instructions? = admin?
+  def search? = admin?
   def change_password? = authenticated?
   def update_password? = authenticated?
 
@@ -20,9 +21,9 @@ class UserPolicy < ApplicationPolicy
   end
 
   relation_scope(:colleagues) do |relation|
-    next relation.active if admin?
+    next relation.has_access if admin?
 
-    colleague_person_ids = OrganizationPerson.where(
+    colleague_person_ids = Affiliation.where(
       organization_id: user.organization_ids
     ).select(:person_id)
     relation.where(person_id: colleague_person_ids).or(relation.where(id: user.id))
@@ -32,5 +33,10 @@ class UserPolicy < ApplicationPolicy
 
   def self?
     user == record
+  end
+
+  def has_ahoy_records?
+    Ahoy::Visit.where(user_id: record.id).exists? ||
+      Ahoy::Event.where(user_id: record.id).exists?
   end
 end

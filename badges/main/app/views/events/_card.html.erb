@@ -28,6 +28,12 @@
     </div>
   </div>
 
+<div class="flex flex-col gap-2 flex-1 min-w-0 pr-1 mr-4 mt-1">
+  <div class="text-sm font-medium overflow-hidden text-ellipsis whitespace-nowrap">
+    <%= event.rhino_description.to_plain_text %>
+  </div>
+</div>
+
   <!-- END title row -->
   <%# disabled until we add visitor registration %>
   <% if current_user %>
@@ -48,12 +54,21 @@
                     class: "admin-only bg-blue-100 btn btn-secondary-outline" %>
         <% end %>
 
-        <% if event.event_registrations.exists?(registrant_id: current_user.id) %>
+        <% if event.event_registrations.exists?(registrant_id: current_user.person_id) %>
           <%= button_to "De-register",
                       event_registrant_registration_path(event_id: event),
                       method: :delete,
                       data: { turbo_confirm: "Are you sure?" },
                       class: "btn btn-secondary-outline" %>
+        <% elsif event.ended? %>
+          <span class="text-sm text-gray-500 italic">Event ended</span>
+          <% if allowed_to?(:manage?, event) %>
+            <%= button_to "Register",
+                        event_registrant_registration_path(event_id: event),
+                        class: "admin-only bg-blue-100 btn btn-primary-outline" %>
+          <% end %>
+        <% elsif !event.published? %>
+          <span class="admin-only bg-blue-100 p-1 text-sm text-gray-500 italic">Not published</span>
         <% elsif event.registerable? %>
           <%= button_to "Register",
                       event_registrant_registration_path(event_id: event),
@@ -62,13 +77,13 @@
           <span class="text-sm text-gray-500 italic">Registration closed</span>
         <% end %>
 
-        <% if event.event_registrations.exists?(registrant_id: current_user.id) %>
+        <% if event.event_registrations.exists?(registrant_id: current_user.person_id) %>
           <span class="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full"> Registered </span>
         <% end %>
       </div>
     </div>
     <!-- 4️⃣ FULL-WIDTH CALENDAR LINKS ROW -->
-    <% if event.event_registrations.exists?(registrant_id: current_user.id) %>
+    <% if event.event_registrations.exists?(registrant_id: current_user.person_id) %>
   <div class="flex flex-col items-center mt-4 pt-3 border-t border-gray-100">
     <p class="text-xs font-bold text-gray-400 uppercase tracking-wide mb-2">
       Add to Your Calendar

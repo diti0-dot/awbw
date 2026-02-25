@@ -1,49 +1,125 @@
 <%= simple_form_for @person, html: { multipart: true, class: "space-y-8",
-                                          data: { turbo: false } } do |f| %>
+                                          data: { turbo: false, controller: "dirty-form" } } do |f| %>
   <%= render 'shared/errors', resource: @person if @person.errors.any? %>
+
   <%= f.hidden_field :created_by_id, value: current_user&.id unless f.object.persisted? %>
   <%= f.hidden_field :updated_by_id, value: current_user&.id %>
+  <% user_id = @user&.id || @person&.user&.id %>
+  <%= hidden_field_tag :user_id, user_id if user_id %>
 
-  <div class="flex gap-8 items-start">
-    <div class="flex-1" style="flex: 0 0 75%;">
+  <div class="flex flex-col md:flex-row gap-8 items-start">
+    <div class="w-full md:w-3/4">
       <div class="space-y-6">
-        <div class="flex flex-col md:flex-row gap-4"><%= f.input :first_name, input_html: { value: f.object.first_name || @user&.first_name } %><%= f.input :last_name, input_html: { value: f.object.last_name || @user&.last_name } %><%= f.input :pronouns %></div>
+        <div class="flex flex-col md:flex-row gap-4"><%= f.input :first_name, input_html: { value: f.object.first_name || @user&.first_name } %><%= f.input :legal_first_name, label: "Legal First Name", hint: "If different from first name" %><%= f.input :last_name, input_html: { value: f.object.last_name || @user&.last_name } %><%= f.input :pronouns %></div>
 
-        <div class="flex flex-col md:flex-row gap-4">
-          <%= f.input :date_of_birth,
-                      as: :date,
-                      discard_year: true,
-                      order: [:month, :day],
-                      prompt: { month: "Select Month", day: "Select Day" },
-                      input_html: {
-                        class: "w-full rounded-md border-gray-300 shadow-sm
-                      focus:border-blue-500 focus:ring focus:ring-blue-200 focus:ring-opacity-50"
-                      } %>
-
-          <% if allowed_to?(:manage?, Person) %>
-            <%= f.input :member_since,
-                        as: :date,
-                        discard_day: true,
-                        start_year: 1991,
-                        end_year: Time.current.year,
-                        prompt: { month: "Select Month", year: "Select Year" },
-                        order: [:month, :year],
-                        label: "Facilitator since",
-                        hint: "Pick Jan if you only know the year",
-                        input_html: {
-                          type: "date",
-                          class: "w-full rounded-md border-gray-300 shadow-sm admin-only bg-blue-100 border-blue-200
+        <% person = f.object.respond_to?(:object) ? f.object.object : f.object %>
+        <% decorated = person.decorate %>
+        <h3 class="font-semibold text-gray-700 mb-2">Important dates</h3>
+        <div class="rounded-lg border border-gray-200 bg-gray-50 p-4 shadow-sm">
+          <div class="flex flex-col md:flex-row gap-6">
+            <div class="shrink-0 relative group cursor-help">
+              <label class="inline-flex items-center gap-1 text-md font-medium text-gray-700 mb-1">
+                Affiliated since <i class="fa-solid fa-circle-info text-gray-400 text-xs"></i>
+              </label>
+              <div class="hidden group-hover:block absolute z-50 left-0 bottom-full mb-1 bg-blue-100 text-gray-700 text-xs rounded-lg shadow-lg ring-1 ring-blue-200 p-3 w-64 whitespace-normal">
+                <% affiliated_start = person.affiliations.minimum(:start_date) %>
+                <% if affiliated_start.nil? && person.affiliations.exists? && person.member_since.present? %>
+                  <p>Earliest start date from any affiliation, regardless of title.<br><br><span class="text-amber-700 font-medium">⚠ No affiliations have a start date. Legacy member_since value is <%= person.member_since.strftime('%b %Y') %>. Add a start date to an affiliation to use it here.</span></p>
+                <% elsif affiliated_start.nil? && person.affiliations.exists? %>
+                  <p>Earliest start date from any affiliation, regardless of title.<br><br><span class="text-amber-700 font-medium">⚠ No affiliations have a start date. Edit the affiliation records to add one.</span></p>
+                <% else %>
+                  <p>Earliest start date from any affiliation, regardless of title. Edit affiliation records to change this date.</p>
+                  <% if decorated.member_since_earlier_than_all_affiliations? %>
+                    <p class="mt-2 text-amber-700 font-medium">⚠ Member since (<%= person.member_since.strftime('%b %Y') %>) is earlier than any affiliation. Create an affiliation with that start date to reflect it on the profile.</p>
+                  <% elsif decorated.member_since_differs_from_all_affiliations? %>
+                    <p class="mt-2 text-gray-500"><i class="fa-solid fa-circle-info mr-1"></i>Member since (<%= person.member_since.strftime('%b %Y') %>) differs from the earliest affiliation start date.</p>
+                  <% end %>
+                <% end %>
+              </div>
+              <div class="pt-1">
+                <% if decorated.affiliated_end_date %>
+                  <i class="fa-solid fa-circle-xmark text-red-400 mr-1" title="No active affiliations"></i>
+                <% end %>
+                <span class="text-gray-900 font-medium"><%= decorated.affiliated_since_date&.strftime("%b %Y") || "—" %><%= " – #{decorated.affiliated_end_date.strftime('%b %Y')}" if decorated.affiliated_end_date %></span>
+                <% if decorated.affiliated_since_date.nil? && person.affiliations.exists? %>
+                  <i class="fa-solid fa-triangle-exclamation text-amber-500 ml-1"></i>
+                <% elsif decorated.member_since_earlier_than_all_affiliations? %>
+                  <p class="text-xs text-amber-700 mt-1">⚠ Earlier date on file: <%= person.member_since.strftime("%b %Y") %></p>
+                <% elsif decorated.member_since_differs_from_all_affiliations? %>
+                  <p class="text-xs text-gray-500 mt-1"><i class="fa-solid fa-circle-info mr-1"></i>Different date on file: <%= person.member_since.strftime("%b %Y") %></p>
+                <% end %>
+              </div>
+            </div>
+            <div class="shrink-0 relative group cursor-help">
+              <label class="inline-flex items-center gap-1 text-md font-medium text-gray-700 mb-1">
+                Facilitator since <i class="fa-solid fa-circle-info text-gray-400 text-xs"></i>
+              </label>
+              <div class="hidden group-hover:block absolute z-50 left-0 bottom-full mb-1 bg-blue-100 text-gray-700 text-xs rounded-lg shadow-lg ring-1 ring-blue-200 p-3 w-64 whitespace-normal">
+                <% facilitator_start = person.affiliations.where("title LIKE ?", "%Facilitator%").minimum(:start_date) %>
+                <% if facilitator_start.nil? && person.member_since.present? %>
+                  <p>Earliest start date from affiliations with 'facilitator' somewhere in the title.<br><br><span class="text-amber-700 font-medium">⚠ Currently showing the legacy member_since value (<%= person.member_since.strftime('%b %Y') %>) because no Facilitator affiliation has a start date. Add a start date to a Facilitator affiliation to stop using the legacy value.</span></p>
+                <% else %>
+                  <p>Earliest start date from affiliations with 'facilitator' somewhere in the title. Edit affiliation records to change this date.</p>
+                  <% if decorated.member_since_earlier_than_facilitator_affiliations? %>
+                    <p class="mt-2 text-amber-700 font-medium">⚠ Member since (<%= person.member_since.strftime('%b %Y') %>) is earlier than any Facilitator affiliation. Create an affiliation with that start date to reflect it on the profile.</p>
+                  <% elsif decorated.member_since_differs_from_facilitator_affiliations? %>
+                    <p class="mt-2 text-gray-500"><i class="fa-solid fa-circle-info mr-1"></i>Member since (<%= person.member_since.strftime('%b %Y') %>) differs from the earliest Facilitator affiliation start date.</p>
+                  <% end %>
+                <% end %>
+              </div>
+              <div class="pt-1">
+                <% if decorated.facilitator_end_date %>
+                  <i class="fa-solid fa-circle-xmark text-red-400 mr-1" title="No active facilitator affiliations"></i>
+                <% end %>
+                <span class="text-gray-900 font-medium"><%= decorated.facilitator_since_date&.strftime("%b %Y") || "—" %><%= " – #{decorated.facilitator_end_date.strftime('%b %Y')}" if decorated.facilitator_end_date %></span>
+                <% if decorated.member_since_earlier_than_facilitator_affiliations? %>
+                  <p class="text-xs text-amber-700 mt-1">⚠ Earlier date on file: <%= person.member_since.strftime("%b %Y") %></p>
+                <% elsif decorated.member_since_differs_from_facilitator_affiliations? %>
+                  <p class="text-xs text-gray-500 mt-1"><i class="fa-solid fa-circle-info mr-1"></i>Different date on file: <%= person.member_since.strftime("%b %Y") %></p>
+                <% end %>
+              </div>
+            </div>
+            <div class="flex-1">
+              <%= f.input :date_of_birth,
+                          label: "Birthday",
+                          as: :date,
+                          discard_year: true,
+                          order: [:month, :day],
+                          prompt: { month: "Select Month", day: "Select Day" },
+                          wrapper_html: { class: "flex flex-wrap gap-2 items-end" },
+                          label_html: { class: "w-full" },
+                          input_html: {
+                            class: "flex-1 rounded-md border-gray-300 shadow-sm
                           focus:border-blue-500 focus:ring focus:ring-blue-200 focus:ring-opacity-50"
-                        } %>
-          <% else %>
-            <div><label class="block text-md font-medium text-gray-700 mb-1"> Facilitator since </label><span class="text-gray-900 font-medium"><%= f.object.member_since&.to_date&.strftime("%B %d, %Y") || "—" %></span></div>
+                          } %>
+            </div>
+          </div>
+          <% if allowed_to?(:manage?, Person) && params[:admin].present? %>
+            <div class="admin-only bg-blue-100 rounded-lg p-4 mt-3">
+              <%= f.input :member_since,
+                          as: :date,
+                          discard_day: true,
+                          start_year: 1991,
+                          end_year: Time.current.year,
+                          prompt: { month: "Select Month", year: "Select Year" },
+                          order: [:month, :year],
+                          label: "Member since (override)",
+                          hint: "Pick January if you only know the year",
+                          wrapper_html: { class: "flex flex-wrap gap-2 items-end" },
+                          label_html: { class: "w-full" },
+                          hint_html: { class: "w-full" },
+                          input_html: {
+                            class: "flex-1 rounded-md border-gray-300 shadow-sm admin-only bg-blue-100 border-blue-200
+                            focus:border-blue-500 focus:ring focus:ring-blue-200 focus:ring-opacity-50"
+                          } %>
+            </div>
           <% end %>
         </div>
       </div>
     </div>
 
     <!-- Avatar -->
-    <div class="flex flex-col items-center gap-4" style="flex: 0 0 25%;"><%= render "shared/form_image_field", f: f, field_name: :avatar %></div>
+    <div class="w-full md:w-1/4 flex flex-col items-center gap-4"><%= render "shared/form_image_field", f: f, field_name: :avatar %></div>
   </div>
 
   <div class="emails">
@@ -54,7 +130,7 @@
         <% if f.object.user %>
           <div>
             <label class="block text-md font-medium text-gray-700 mb-1">Primary email</label>
-            <span class="text-gray-900 font-medium"><%= f.object.user&.email || f.object.email %></span>
+            <span class="text-gray-900 font-medium"><%= f.object.user&.email %></span>
 
             <p class="text-sm text-gray-500 mt-1">
               Only
@@ -67,14 +143,15 @@
               <% end %>
             </p>
           </div>
-          <div><label class="block text-md font-medium text-gray-700 mb-1">Email type</label><span class="text-gray-900 font-medium"><%= f.object.user&.email_type || f.object.email_type %></span></div>
         <% else %>
           <%= f.input :email, label: "Primary email" %>
-          <%= f.input :email_type,
-                      label: "Primary email type",
-                      as: :select,
-                      collection: Person::CONTACT_TYPES.compact.map{|type| [type.to_s.humanize, type]} %>
         <% end %>
+
+        <%= f.input :email_type,
+                    label: "Primary email type",
+                    as: :select,
+                    collection: Person::CONTACT_TYPES.compact.map { |type| [type.to_s.humanize, type] },
+                    selected: f.object.email_type || f.object.user&.email_type %>
 
         <%= f.input :email_2, label: "Secondary email" %>
 
@@ -88,7 +165,7 @@
 
   <div class="phones">
     <div class="form-group space-y-4">
-      <div class="font-semibold text-gray-700">
+      <div class="font-semibold text-gray-700 mb-2">
         Phones
       </div>
 
@@ -112,11 +189,11 @@
     <div class="flex flex-col md:flex-row gap-4"><%# = f.input :primary_address, collection: [['Work', 1], ['Home', 2]], prompt: "Select Primary Address" %></div>
 
     <div class="form-group space-y-4">
-      <div class="font-semibold text-gray-700">
+      <div class="font-semibold text-gray-700 mb-2">
         Addresses
       </div>
 
-      <div class="rounded-lg border border-gray-200 bg-gray-50 p-4 mb-4 shadow-sm">
+      <div class="rounded-lg border border-gray-200 bg-yellow-50 p-4 mb-4 shadow-sm">
         <%= f.simple_fields_for :addresses do |f| %>
           <%= render "addresses/address_fields", f: f %>
         <% end %>
@@ -129,60 +206,89 @@
     </div>
   </div>
 
-  <!-- Organization Connections (PROJECT_USERS) -->
+  <!-- Sectors -->
   <div class="form-group space-y-4">
-    <div class="font-semibold text-gray-700">Organizational affiliations <span class="text-sm font-normal text-gray-500">(only editable by admins)</span></div>
-
+    <div class="font-semibold text-gray-700 mb-2">
+      Sectors
+    </div>
     <div class="rounded-lg border border-gray-200 bg-gray-50 p-4 mb-4 shadow-sm">
-      <% if allowed_to?(:manage?, Person) %>
-        <div class="admin-only bg-blue-100 p-3">
-          <%= f.fields_for :organization_people do |organization_person_form| %>
-            <%= render "organization_person_fields",
-                       f: organization_person_form,
-                       organizations: f.object.organizations,
-                       user: f.object.user %>
-          <% end %>
+      <%= f.simple_fields_for :sectorable_items do |sfi| %>
+        <%= render "shared/sectorable_item_fields", f: sfi, show_is_leader: true %>
+      <% end %>
 
-          <div class="admin-only bg-blue-100 p-3 mt-6"><%= link_to_add_association "➕ Add Role",
+      <%= link_to_add_association "➕ Add Sector",
+                                  f,
+                                  :sectorable_items,
+                                  partial: "shared/sectorable_item_fields",
+                                  render_options: {
+                                    locals: { collection: (@sectors_collection || [])
+                                      .reject { |_, id| (@current_sector_ids || []).include?(id) },
+                                              show_is_leader: true } },
+                                  class: "btn btn-secondary-outline" %>
+    </div>
+  </div>
+
+  <!-- Profile-specific Categories -->
+  <% if @person_categories_grouped.present? %>
+    <div class="form-group space-y-4">
+      <% @person_categories_grouped.each do |type, cats| %>
+        <div class="rounded-lg border border-gray-200 bg-gray-50 p-4 shadow-sm">
+          <h3 class="font-semibold text-gray-700 mb-3"><%= type.display_label %></h3>
+          <div class="flex flex-wrap gap-3">
+            <% cats.each do |category| %>
+              <% id = "person_category_ids_#{category.id}" %>
+              <label for="<%= id %>"
+                     class="flex items-center gap-2 p-3 cursor-pointer w-auto min-w-[180px] bg-white border border-gray-200 rounded-lg shadow-sm hover:bg-gray-100 transition">
+                <%= hidden_field_tag "person[category_ids][]", "" %>
+                <%= check_box_tag "person[category_ids][]",
+                                  category.id,
+                                  @person.category_ids.include?(category.id),
+                                  id: id,
+                                  class: "h-4 w-4 text-blue-600 rounded" %>
+                <span class="text-sm text-gray-700 whitespace-nowrap"><%= category.name %></span>
+              </label>
+            <% end %>
+          </div>
+        </div>
+      <% end %>
+    </div>
+  <% end %>
+
+  <!-- Organization Affiliations -->
+  <div class="form-group space-y-4">
+    <div class="font-semibold text-gray-700 mb-2">
+      Affiliations<span class="text-sm font-normal text-gray-500"> (only editable by admins)</span>
+    </div>
+
+    <div class="rounded-lg border border-gray-200 <%= DomainTheme.bg_class_for(:organizations) %> p-4 mb-4 shadow-sm">
+      <% if allowed_to?(:manage?, Person) %>
+        <div class="admin-only bg-blue-100 p-3" data-controller="paginated-fields" data-paginated-fields-per-page-value="10">
+          <%= f.fields_for :affiliations do |affiliation_form| %>
+            <div data-paginated-fields-target="item">
+              <%= render "affiliation_fields",
+                         f: affiliation_form %>
+            </div>
+          <% end %>
+          <div data-paginated-fields-target="nav"></div>
+
+          <div class="admin-only bg-blue-100 p-3 mt-6"><%= link_to_add_association "➕ Add Affiliation",
                                         f,
-                                        :organization_people,
-                                        html_options: { locals: { organizations: f.object.organizations } },
+                                        :affiliations,
                                         class: "btn btn-secondary-outline" %></div>
         </div>
       <% else %>
-        <% f.object.organization_people.each do |ou| %>
+        <% f.object.affiliations.each do |affiliation| %>
           <div class="ps-6 mb-2">
-            <li><%= ou.title || ou.position %> - <%= ou.persisted? ? (link_to ou.organization&.name, organization_path(ou.organization), class: "underline") : ou.organization&.name %></li>
+            <li><%= affiliation.title || affiliation.position %> - <%= affiliation.persisted? ? (link_to affiliation.organization&.name, organization_path(affiliation.organization), class: "underline") : affiliation.organization&.name %></li>
           </div>
         <% end %>
       <% end %>
     </div>
   </div>
 
-  <div class="form-group space-y-4">
-    <div class="font-semibold text-gray-700">
-      Sectors
-    </div>
-
-    <div class="rounded-lg border border-gray-200 bg-gray-50 p-4 mb-4 shadow-sm">
-      <div class="flex flex-wrap items-center gap-4 p-3">
-        <%= f.simple_fields_for :sectorable_items do |sfi| %>
-          <%= render "sectorable_item_fields", f: sfi %>
-        <% end %>
-      </div>
-
-      <%= link_to_add_association "➕ Add Sector",
-                                    f,
-                                    :sectorable_items,
-                                    render_options: {
-                                      locals: { collection: (@all_sectors || Sector.none)
-                                        .where.not(id: (@current_sector_ids || [])) } },
-                                    class: "btn btn-secondary-outline" %>
-    </div>
-  </div>
-
   <!-- PERSON FIELDS -->
-  <div class="space-y-6"><%= f.input :bio,
+  <div class="space-y-6">
+    <%= f.input :bio,
                 as: :text,
                 input_html: {
                   rows: 2,
@@ -192,8 +298,24 @@
                 },
                 hint: "Maximum 250 characters" %></div>
 
+  <!-- Preferences: timezone for event times etc. -->
+  <% if f.object.user %>
+    <%= f.fields_for :user do |user_form| %>
+      <div class="space-y-6 p-3">
+        <%= user_form.input :time_zone,
+                    as: :select,
+                    collection: us_time_zone_fundamentals,
+                    selected: user_form.object.time_zone.presence || "Pacific Time (US & Canada)",
+                    include_blank: false,
+                    hint: "Event times and other dates will be shown in this timezone.",
+                    input_html: { class: "w-full" },
+                    wrapper_html: { class: "w-full max-w-md" } %>
+      </div>
+    <% end %>
+  <% end %>
+
   <div class="profile-preferences-section">
-    <div class="font-medium text-gray-700 mb-3 block">
+    <div class="font-medium text-gray-700 mb-2 block">
       Social media links:
     </div>
 
@@ -209,7 +331,7 @@
   </div>
 
   <div class="profile-preferences-section">
-    <div class="font-medium text-gray-700 mb-3 block">
+    <div class="font-medium text-gray-700 mb-2 block">
       Profile display preferences:
     </div>
 
@@ -237,7 +359,7 @@
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mt-3"><%= f.input :profile_show_email, label: "Show email" %><%= f.input :profile_show_phone, label: "Show phone" %><%= f.input :profile_show_social_media, label: "Show social media" %></div>
 
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mt-3">
-          <%= f.input :profile_show_member_since, label: "Show person since" %>
+          <%= f.input :profile_show_member_since, label: "Show facilitator since" %>
           <%= f.input :profile_show_bio, label: "Show bio" %>
           <%= f.input :profile_show_affiliations, label: "Show affiliations" %>
           <%= f.input :profile_show_sectors, label: "Show sectors" %>
@@ -247,22 +369,59 @@
           <%= f.input :profile_show_workshops, label: "Show workshops" %>
           <%= f.input :profile_show_workshop_variations, label: "Show workshop variations" %>
           <%= f.input :profile_show_stories, label: "Show stories" %>
-          <%= f.input :profile_show_events_registered, label: "Show participation" %>
+          <%= f.input :profile_show_events_registered, label: "Show registrations" %>
         </div>
 
         <!-- Row 5 -->
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mt-3"><%= f.input :profile_show_workshop_ideas, label: "Show workshop ideas" %><%= f.input :profile_show_story_ideas, label: "Show story ideas" %><%= f.input :profile_show_workshop_logs, label: "Show workshop logs" %></div>
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mt-3">
+          <%= f.input :profile_show_story_ideas, label: "Show story ideas" %>
+          <%= f.input :profile_show_workshop_ideas, label: "Show workshop ideas" %>
+          <%= f.input :profile_show_workshop_variation_ideas, label: "Show variation ideas" %>
+          <%= f.input :profile_show_workshop_logs, label: "Show workshop logs" %></div>
       </div>
     </div>
   </div>
 
+  <% if f.object.persisted? %>
+    <!-- Comments -->
+    <% if allowed_to?(:manage?, Comment) %>
+      <div class="form-group space-y-4" id="comments-section">
+        <div class="font-semibold text-gray-700 mb-2">Comments</div>
+
+        <div class="admin-only bg-blue-50 rounded-lg border border-gray-200 p-4 mb-4 shadow-sm"
+            data-controller="paginated-fields comment-edit-toggle"
+            data-paginated-fields-per-page-value="5">
+          <%= f.simple_fields_for :comments do |cf| %>
+            <%= render "comments/comment_fields", f: cf %>
+          <% end %>
+
+          <div data-paginated-fields-target="nav"></div>
+
+          <button type="button"
+                  class="text-sm text-gray-400 hover:text-blue-600 underline cursor-pointer whitespace-nowrap"
+                  style="float:right"
+                  data-action="click->comment-edit-toggle#toggle">
+            <span data-comment-edit-toggle-target="editLabel">Edit Comments</span>
+            <span data-comment-edit-toggle-target="viewLabel" style="display:none">Done Editing</span>
+          </button>
+          <%= link_to_add_association "➕ Add Comment",
+                                      f,
+                                      :comments,
+                                      partial: "comments/comment_fields",
+                                      class: "btn btn-secondary-outline" %>
+        </div>
+      </div>
+    <% end %>
+  <% end %>
+
   <div class="action-buttons mt-8 flex justify-center gap-3">
     <% if allowed_to?(:destroy?, f.object) %>
       <%= link_to "Delete", @person, class: "btn btn-danger-outline",
-                  data: { data_method: :delete, data_confirm: "Are you sure you want to delete?" } %>
+                  data: { turbo_method: :delete, turbo_confirm: "Are you sure you want to delete?" } %>
     <% end %>
 
-    <%= link_to "Cancel", people_path, class: "btn btn-secondary-outline" %>
+    <%= link_to "Cancel", people_path, class: "btn btn-secondary-outline",
+                data: { action: "click->dirty-form#confirmCancel" } %>
     <%= f.button :submit, class: "btn btn-primary" %>
   </div>
 <% end %>

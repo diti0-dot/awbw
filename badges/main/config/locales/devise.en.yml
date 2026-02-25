@@ -8,21 +8,21 @@ en:
       send_paranoid_instructions: "If your email address exists in our database, you will receive an email with instructions for how to confirm your email address in a few minutes."
     failure:
       already_authenticated: "You are already signed in."
-      inactive: "Your account is currently inactive. Please email %{organization_name} to find out more."
-      invalid: "Invalid %{authentication_keys} or password."
-      locked: "Your account is locked."
+      inactive: "Invalid email or password. Please contact us for assistance."
+      invalid: "Invalid email or password. Please contact us for assistance."
+      locked: "Please contact us for assistance."
       last_attempt: "You have one more attempt before your account is locked."
-      not_found_in_database: "Invalid %{authentication_keys} or password."
+      not_found_in_database: "Invalid email or password. Please contact us for assistance."
       timeout: "Your session expired. Please sign in again to continue."
       unauthenticated: "You need to sign in or sign up before continuing."
       unconfirmed: "You have to confirm your email address before continuing."
     mailer:
       confirmation_instructions:
-        subject: "Confirmation instructions"
+        subject: "AWBW portal: Welcome instructions"
       reset_password_instructions:
-        subject: "Password reset request for your %{organization_name} account"
+        subject: "AWBW portal: Password reset request"
       unlock_instructions:
-        subject: "Unlock instructions"
+        subject: "AWBW portal: Unlock instructions"
     omniauth_callbacks:
       failure: "Could not authenticate you from %{kind} because \"%{reason}\"."
       success: "Successfully authenticated from %{kind} account."
@@ -58,5 +58,5 @@ en:
       not_found: "not found"
       not_locked: "was not locked"
       not_saved:
-        one: "1 error prohibited this %{resource} from being saved:"
-        other: "%{count} errors prohibited this %{resource} from being saved:"
+        one: "1 error prevented this %{resource} from being saved:"
+        other: "%{count} errors prevented this %{resource} from being saved:"

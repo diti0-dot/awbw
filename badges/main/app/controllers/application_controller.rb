@@ -12,8 +12,6 @@ class ApplicationController < ActionController::Base
   verify_authorized unless: :devise_controller?
 
   after_action :flush_lifecycle_events
-  around_action :set_time_zone_from_user, if: :current_user
-
   rescue_from ActionPolicy::Unauthorized do |exception|
     flash[:alert] = "You are not authorized to perform this action.<br>#{ exception.message if Rails.env.test? }"
     redirect_to root_path
@@ -32,7 +30,7 @@ class ApplicationController < ActionController::Base
   around_action :set_time_zone_from_user
 
   def set_time_zone_from_user
-    zone = ActiveSupport::TimeZone[current_user&.time_zone || "UTC"]
+    zone = ActiveSupport::TimeZone[current_user&.time_zone || "Pacific Time (US & Canada)"]
     if zone
       Time.use_zone(zone) { yield }
     else
@@ -69,7 +67,16 @@ class ApplicationController < ActionController::Base
 
   def preload_current_user_associations
     return unless current_user
-    current_user.person.organization_people.includes(:organization).load if current_user.person
+
+    # Preload bookmarks so bookmark_for uses in-memory lookup instead of N+1 queries
+    current_user.bookmarks.load
+
+    return unless current_user.person
+    @current_user_active_affiliations = current_user.person
+                                                  .affiliations
+                                                  .active
+                                                  .includes(:organization)
+                                                  .load
   end
 
   def set_current_user

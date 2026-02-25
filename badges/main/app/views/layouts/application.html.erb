@@ -3,14 +3,15 @@
 <html>
   <head>
     <title>AWBW</title>
-    <%= javascript_include_tag 'application', 'data-turbolinks-track' => true %>
-    <%= javascript_include_tag "activestorage" %>
     <%= csrf_meta_tags %>
 
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
 
-    <link rel="shortcut icon" type="image/png" href="<%= asset_path("favicon.png") %>">
+    <link rel="shortcut icon" type="image/png" href="<%= asset_path(favicon_file) %>">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Lato:wght@400;700;900&display=swap" rel="stylesheet">
 
     <%= vite_stylesheet_tag "application.css" %>
     <%= vite_client_tag %>
@@ -29,7 +30,8 @@
 
   <body class="<%= controller.controller_name %> <%= controller.action_name %>
       flex flex-col min-h-screen bg-white">
-    <div class="flex-grow" id="main">
+    <%= render "shared/svg_symbols" %>
+    <div class="flex-grow flex flex-col" id="main">
       <div class="sticky top-0 left-0 w-full z-50 print:hidden">
         <!-- Navbar -->
         <nav class="<%= navbar_bg_class %> text-white">
@@ -39,23 +41,21 @@
         <%= render "shared/banner" %>
       </div>
       <div class="printed-logo hidden print:block">
-        <%= image_tag("awbw-print-logo.png", class: "print:w-36 m-3") %>
+        <%= image_tag("logo-awbw-print.png", class: "print:w-36 m-3") %>
         <hr>
       </div>
-      <div class="mx-auto max-w-7xl px-2 sm:px-6 lg:px-8">
+      <div class="<%= yield(:page_bg_class) if content_for?(:page_bg_class) %> flex-grow">
+        <div class="<%= 'mx-auto max-w-7xl px-2 sm:px-6 lg:px-8' unless content_for?(:full_width) %> <%= 'pt-3' unless controller_name == 'home' %>">
           <%# TODO handle printable area %>
-          <% if user_signed_in? %>
-            <div class="signed-in-user my-3"><%= render "shared/flash_messages" %><%= yield %></div>
-          <% else %>
-            <div class="not-signed-in-user min-h-screen flex flex-col">
-              <%= render "shared/flash_messages" %>
-              <%= yield %>
-            </div>
-          <% end %>
+          <div class="<%= 'my-3' unless controller_name == 'home' %>">
+            <%= render "shared/flash_messages" %>
+            <%= yield %>
+          </div>
         </div>
+      </div>
     </div>
 
-    <div class="site-footer print:hidden"><%= render "shared/footer" %></div>
+    <div class="site-footer print:hidden <%= 'mt-12' unless controller_name == 'home' %>"><%= render "shared/footer" %></div>
     <%= render "shared/footer_nav" %>
   </body>
 </html>

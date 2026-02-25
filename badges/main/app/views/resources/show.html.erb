@@ -1,34 +1,28 @@
-<div class="min-h-screen py-8">
-  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-    <div class="<%= DomainTheme.bg_class_for(:resources) %> border border-gray-200 rounded-xl shadow-md hover:shadow-lg transition-shadow duration-200 p-6">
-      <!-- Top Right Utility Buttons -->
-      <div class="text-right mb-4 space-x-1">
-        <%= link_to "Resources", resources_path, class: "btn btn-secondary-outline" %>
-        <%= link_to "Dashboard", root_path, class: "btn btn-secondary-outline" %>
-        <%= link_to "External URL", safe_url(@resource.url), target: "_blank", rel: "noopener noreferrer",
-                    class: "btn btn-secondary-outline" if @resource.url.present? %>
+<% content_for(:page_bg_class, "admin-or-public-or-authpublished") %>
+<div class="<%= DomainTheme.bg_class_for(:resources) %> border border-gray-200 rounded-xl shadow p-6">
+      <!-- Top Right Utility Links -->
+      <div class="flex flex-wrap justify-end gap-2 mb-4">
+        <%= link_to "Home", root_path, class: "text-sm text-gray-500 hover:text-gray-700 px-2 py-1" %>
+        <%= link_to "Resources", resources_path, class: "text-sm text-gray-500 hover:text-gray-700 px-2 py-1" %>
         <% if allowed_to?(:edit?, @resource) %>
-          <%= link_to("Edit", edit_resource_path(@resource),
-                      class: "admin-only bg-blue-100 btn btn-primary-outline") %>
+          <%= link_to "Edit", edit_resource_path(@resource),
+                      class: "admin-only bg-blue-100 text-sm text-gray-500 hover:text-gray-700 px-2 py-1" %>
         <% end %>
-        <span class="inline-block text-md">
+        <span class="inline-block text-sm">
           <%= render "bookmarks/editable_bookmark_button", resource: @resource.object %>
-        </span>
-        <span class="inline-block text-md">
-          <%= print_button(@resource, printable_type: "Resource", button_text: "Print page") %>
         </span>
         <%= link_to ("<span title='Download #{@resource.kind}'>" +
           " Download <span class='fa fa-download'></span></span>").html_safe,
                     resource_download_path(@resource),
                     class: "btn btn-utility",
-                    data: {turbo: false} if @resource.downloadable_asset&.file&.attached? %>
+                    download: true if @resource.downloadable_asset&.file&.attached? %>
       </div>
       <!-- Resource Card -->
       <div class="bg-white rounded-lg shadow-md p-6 space-y-6">
         <!-- Title -->
         <div class="font-semibold text-gray-900 mb-2">
           <%= title_with_badges(@resource, font_size: "text-3xl") %>
-          <%= "(#{@resource.windows_type&.short_name})" if @resource.windows_type %>
+          <%#= "(#{@resource.windows_type&.short_name})" if @resource.windows_type %>
         </div>
         <!-- Author and Date -->
         <div class="flex flex-col gap-1">
@@ -53,11 +47,9 @@
         </div>
         <!-- Assets -->
         <div id="hero-image">
-          <%= render "assets/display_assets", resource: @resource, file: @resource.display_image, variant: :hero %>
+          <%= render "assets/display_assets", resource: @resource, file: @resource.display_image, variant: :hero, link: true %>
         </div>
       </div>
       <!-- Mentions -->
       <%= render "show_mentions" %>
-    </div>
-  </div>
 </div>

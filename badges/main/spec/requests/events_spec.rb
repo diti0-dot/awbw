@@ -45,9 +45,9 @@ RSpec.describe "Events", type: :request do
         sign_in user_pt
         get event_url(event_with_fixed_times)
         expect(response).to be_successful
-        # 19:00 UTC = 12:00 noon PT
-        expect(response.body).to include("Sun, Jun 15 @ 12 - 1 pm")
-        expect(response.body).to include("All times displayed in (GMT-08:00) Pacific Time")
+        # 19:00 UTC = 12:00 noon PT (styled format on show page)
+        expect(response.body).to include("Sunday, June 15")
+        expect(response.body).to include("12 pm - 1 pm")
       end
 
       it "displays start time in Eastern for user with time_zone America/New_York" do
@@ -56,9 +56,9 @@ RSpec.describe "Events", type: :request do
         get event_url(event_with_fixed_times)
 
         expect(response).to be_successful
-        # 19:00 UTC = 3:00 pm ET (3 hours later than 12 pm PT)
-        expect(response.body).to include("Sun, Jun 15 @ 3 - 4 pm")
-        expect(response.body).to include("All times displayed in (GMT-05:00) Eastern Time")
+        # 19:00 UTC = 3:00 pm ET (styled format on show page)
+        expect(response.body).to include("Sunday, June 15")
+        expect(response.body).to include("3 pm - 4 pm")
       end
     end
   end
@@ -91,9 +91,9 @@ RSpec.describe "Events", type: :request do
         }.to change(Event, :count).by(1)
       end
 
-      it "redirects" do
+      it "redirects to the created event" do
         post events_path, params: valid_params
-        expect(response).to redirect_to(events_path)
+        expect(response).to redirect_to(event_url(Event.last))
       end
 
       it "stores start_date/end_date in UTC when created by user in Pacific time zone" do
@@ -110,8 +110,8 @@ RSpec.describe "Events", type: :request do
           public: true
         } }
 
-        expect(response).to redirect_to(events_url)
         created = Event.order(created_at: :desc).first
+        expect(response).to redirect_to(event_url(created))
         expect(created.start_date.utc).to eq(Time.utc(2025, 6, 15, 19, 0, 0))
         expect(created.end_date.utc).to eq(Time.utc(2025, 6, 15, 20, 0, 0))
       end
@@ -129,8 +129,8 @@ RSpec.describe "Events", type: :request do
           public: true
         } }
 
-        expect(response).to redirect_to(events_url)
         created = Event.order(created_at: :desc).first
+        expect(response).to redirect_to(event_url(created))
         expect(created.start_date.utc).to eq(Time.utc(2025, 6, 15, 19, 0, 0))
         expect(created.end_date.utc).to eq(Time.utc(2025, 6, 15, 20, 0, 0))
       end
@@ -175,6 +175,46 @@ RSpec.describe "Events", type: :request do
       it "redirects" do
         patch event_path(event), params: update_params
         expect(response).to redirect_to(root_path)
+      end
+    end
+  end
+
+  describe "PATCH /preview" do
+    context "as admin" do
+      before { sign_in admin }
+
+      it "renders the show template with preview changes" do
+        patch preview_event_path(event), params: { event: { title: "Preview Title" } }
+        expect(response).to have_http_status(:ok)
+        expect(response.body).to include("Preview Title")
+        expect(response.body).to include("Preview")
+      end
+
+      it "does not persist changes to the database" do
+        original_title = event.title
+        patch preview_event_path(event), params: { event: { title: "Preview Title" } }
+        expect(event.reload.title).to eq(original_title)
+      end
+    end
+
+    context "as non-admin non-owner" do
+      before { sign_in user }
+
+      it "redirects" do
+        patch preview_event_path(event), params: { event: { title: "Preview Title" } }
+        expect(response).to redirect_to(root_path)
+      end
+    end
+
+    context "as owner" do
+      let(:owned_event) { create(:event, created_by: user) }
+
+      before { sign_in user }
+
+      it "renders the show template" do
+        patch preview_event_path(owned_event), params: { event: { title: "Owner Preview" } }
+        expect(response).to have_http_status(:ok)
+        expect(response.body).to include("Owner Preview")
       end
     end
   end

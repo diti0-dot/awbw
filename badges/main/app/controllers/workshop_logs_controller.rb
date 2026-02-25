@@ -5,7 +5,7 @@ class WorkshopLogsController < ApplicationController
     authorize!
     @per_page = params[:number_of_items_per_page].presence || 10
     params[:workshop_id] ||= @workshop&.id
-    base_scope = authorized_scope(WorkshopLog.includes(:workshop, :user, :windows_type)
+    base_scope = authorized_scope(WorkshopLog.includes(:workshop, :windows_type, created_by: :person)
                                              .where(type: "WorkshopLog"))
     filtered = base_scope.search(params)
     @workshop_logs_unpaginated  = filtered
@@ -102,25 +102,40 @@ class WorkshopLogsController < ApplicationController
   end
 
   def set_index_variables # needs to not be private
-    scoped_logs = authorized_scope(WorkshopLog.all)
-    @month_year_options = scoped_logs.group("DATE_FORMAT(COALESCE(date, created_at, NOW()), '%Y-%m')")
-                                     .select("DATE_FORMAT(COALESCE(date, created_at, NOW()), '%Y-%m') AS ym,
+    cache_key_prefix = "workshop_logs/index_dropdowns/#{current_user&.id}"
+    @month_year_options = Rails.cache.fetch("#{cache_key_prefix}/month_year", expires_in: 5.minutes) do
+      scoped_logs = authorized_scope(WorkshopLog.all)
+      scoped_logs.group("DATE_FORMAT(COALESCE(date, created_at, NOW()), '%Y-%m')")
+                 .select("DATE_FORMAT(COALESCE(date, created_at, NOW()), '%Y-%m') AS ym,
            MAX(COALESCE(date, created_at)) AS max_dt")
-                                     .order("max_dt DESC")
-                                     .map { |record| [ Date.strptime(record.ym, "%Y-%m").strftime("%B %Y"), record.ym ] }
-    @year_options = scoped_logs.pluck(
-      Arel.sql("DISTINCT EXTRACT(YEAR FROM COALESCE(date, created_at, NOW()))")
-    ).sort.reverse
+                 .order("max_dt DESC")
+                 .map { |record| [ Date.strptime(record.ym, "%Y-%m").strftime("%B %Y"), record.ym ] }
+    end
+    @year_options = Rails.cache.fetch("#{cache_key_prefix}/year", expires_in: 5.minutes) do
+      scoped_logs = authorized_scope(WorkshopLog.all)
+      scoped_logs.pluck(Arel.sql("DISTINCT EXTRACT(YEAR FROM COALESCE(date, created_at, NOW()))")).sort.reverse
+    end
 
     scoped_users = authorized_scope(User.all, as: :colleagues)
-    @people = scoped_users.or(User.where(id: @workshop_logs_unpaginated.pluck(:user_id)))
-                                .includes(:workshop_logs, :person)
-                                .joins(:workshop_logs)
+    @users = scoped_users.or(User.where(id: @workshop_logs_unpaginated.pluck(:created_by_id)))
+                                .joins(:person)
                                 .distinct
-                                .order("people.first_name, people.last_name")
+                                .select("users.id, users.email, users.person_id, people.first_name, people.last_name")
+                                .order(Arel.sql("LOWER(people.first_name), LOWER(people.last_name), LOWER(users.email), LOWER(people.email_2), LOWER(people.email)"))
     @organizations = authorized_scope(Organization.all)
     @workshops = Workshop.where(id: @workshop_logs_unpaginated.select(:workshop_id).distinct)
+                         .includes(:windows_type)
                          .order(:title)
+
+    # Pre-compute grand totals to avoid expensive query in view
+    @grand_totals = @workshop_logs_unpaginated.pick(
+      Arel.sql("COALESCE(SUM(children_ongoing),0)"),
+      Arel.sql("COALESCE(SUM(teens_ongoing),0)"),
+      Arel.sql("COALESCE(SUM(adults_ongoing),0)"),
+      Arel.sql("COALESCE(SUM(children_first_time),0)"),
+      Arel.sql("COALESCE(SUM(teens_first_time),0)"),
+      Arel.sql("COALESCE(SUM(adults_first_time),0)")
+    ) || [ 0, 0, 0, 0, 0, 0 ]
   end
 
   private
@@ -197,7 +212,7 @@ class WorkshopLogsController < ApplicationController
   def workshop_log_params
     params.require(:workshop_log).permit(
       :children_ongoing, :children_first_time, :teens_ongoing, :teens_first_time,
-      :adults_ongoing, :adults_first_time, :owner_id, :owner_type, :user_id, :organization_id, :date,
+      :adults_ongoing, :adults_first_time, :owner_id, :owner_type, :created_by_id, :organization_id, :date,
       :workshop_name, :workshop_id, :windows_type_id, :other_description, :external_workshop_title, # :user,
       quotable_item_quotes_attributes: [
         :id, :quotable_type, :quotable_id, :_destroy,

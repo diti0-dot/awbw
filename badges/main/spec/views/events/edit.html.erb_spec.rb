@@ -21,12 +21,13 @@ RSpec.describe "events/edit", type: :view do
     allow(view).to receive(:allowed_to?).with(:manage?, event).and_return(true)
     allow(view).to receive(:allowed_to?).with(:index?, Event).and_return(true)
     allow(view).to receive(:allowed_to?).with(:destroy?, event).and_return(true)
+    allow(view).to receive(:allowed_to?).with(:index?, with: Admin::AhoyActivityPolicy).and_return(false)
   end
 
   it "renders the editing event heading" do
     render
 
-    expect(rendered).to have_selector("h1", text: "Edit Event")
+    expect(rendered).to have_selector("h1", text: "Edit event")
   end
 
   it "renders the form partial" do

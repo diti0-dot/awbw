@@ -1,5 +1,5 @@
 class CommunityNewsController < ApplicationController
-  include ExternallyRedirectable, AhoyTracking
+  include ExternallyRedirectable, AhoyTracking, TagAssignable
   skip_before_action :authenticate_user!, only: [ :index, :show ]
   before_action :set_community_news, only: [ :show, :edit, :update, :destroy ]
 
@@ -10,6 +10,16 @@ class CommunityNewsController < ApplicationController
       base_scope = authorized_scope(CommunityNews.includes([ :bookmarks, :primary_asset,
                                                              :author, :organization, author: :person ]))
       filtered = base_scope.search_by_params(params)
+      @sort = %w[created_at title author organization].include?(params[:sort]) ? params[:sort] : "created_at"
+      @sort_direction = params[:direction] == "asc" ? "asc" : "desc"
+      filtered = case @sort
+      when "author"
+        filtered.left_joins(author: :person).reorder("people.last_name #{@sort_direction}, people.first_name #{@sort_direction}")
+      when "organization"
+        filtered.left_joins(:organization).reorder("organizations.name #{@sort_direction}")
+      else
+        filtered.reorder(@sort => @sort_direction)
+      end
       @community_news = filtered.paginate(page: params[:page], per_page: per_page).decorate
       @count_display = filtered.count == base_scope.count ? base_scope.count : "#{filtered.count}/#{base_scope.count}"
 
@@ -67,7 +77,7 @@ class CommunityNewsController < ApplicationController
     end
 
     if success
-      redirect_to community_news_index_path,
+      redirect_to @community_news,
                   notice: "Community news was successfully created."
     else
       @community_news = @community_news.decorate
@@ -91,7 +101,7 @@ class CommunityNewsController < ApplicationController
     end
 
     if success
-      redirect_to community_news_index_path,
+      redirect_to @community_news,
                   notice: "Community news was successfully updated.", status: :see_other
     else
       set_form_variables
@@ -107,8 +117,8 @@ class CommunityNewsController < ApplicationController
 
   # Optional hooks for setting variables for forms or index
   def set_form_variables
-    @organizations = Organization.pluck(:name, :id).sort_by(&:first)
-    @authors = User.active.or(User.where(id: @community_news.author_id))
+    @organizations = authorized_scope(Organization.all).order(:name).pluck(:name, :id).sort_by(&:first)
+    @authors = authorized_scope(User.has_access.or(User.where(id: @community_news.author_id)))
                    .includes(:person)
                    .map { |u| [ u.full_name, u.id ] }.sort_by(&:first)
     @categories_grouped =
@@ -117,20 +127,11 @@ class CommunityNewsController < ApplicationController
         .published
         .order(:position, :name)
         .group_by(&:category_type)
-        .select { |type, _| type.nil? || type.published? }
+        .select { |type, _| type.nil? || (type.published? && !type.story_specific? && !type.profile_specific?) }
         .sort_by { |type, _| type&.name.to_s.downcase }
     @sectors = Sector.published.order(:name)
     @community_news.build_primary_asset if @community_news.primary_asset.blank?
     @community_news.gallery_assets.build
-  end
-
-  def assign_associations(community_news)
-    selected_category_ids = Array(params[:community_news][:category_ids]).reject(&:blank?).map(&:to_i)
-    community_news.categories = Category.where(id: selected_category_ids)
-
-    selected_sector_ids = Array(params[:community_news][:sector_ids]).reject(&:blank?).map(&:to_i)
-    community_news.sectors = Sector.where(id: selected_sector_ids)
-    community_news.save!
   end
 
   private

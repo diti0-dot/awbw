@@ -1,80 +1,148 @@
-<div class="min-h-screen py-8">
-  <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-    <!-- Outer Soft Container (Events = blue theme) -->
-    <div
-      class="
-        <%= DomainTheme.bg_class_for(:events) %> border border-gray-200 rounded-xl
-        shadow-md hover:shadow-lg transition-shadow duration-200 p-6
-      "
-    >
-      <!-- Top Right Actions -->
-      <div class="text-right mb-4 space-x-2">
-        <%= link_to "Events", events_path, class: "btn btn-secondary-outline" %>
-        <%= link_to "Dashboard", root_path, class: "btn btn-secondary-outline" %>
-        <% if allowed_to?(:edit?, @event) %>
-          <%= link_to "Edit",
-          edit_event_path(@event),
-          class: "btn btn-secondary-outline admin-only bg-blue-100" %>
-        <% end %>
+<% content_for(:page_bg_class, "admin-or-public-or-authpublished") %>
 
-        <span class="inline-block"><%= render "bookmarks/editable_bookmark_button", resource: @event.object %></span>
-      </div>
-      <!-- Inner White Card -->
-      <div class="bg-white rounded-lg shadow p-8">
-        <div class="grid grid-cols-1 md:grid-cols-5 gap-10">
-          <!-- Left Column -->
-          <div class="md:col-span-3">
-            <!-- Title + Badges -->
-            <div class="my-3"><%= title_with_badges(@event, font_size: "text-3xl") %></div>
-            <!-- Dates Section -->
-            <div class="space-y-6">
-              <div class=""><%= @event.times(display_day: true, display_date: true) %></div>
-
-              <% if @event.labelled_cost %>
-                <div><%= @event.labelled_cost %></div>
-              <% end %>
-
-              <% if @event.location.present? %>
-                <div>
-                  <p class="font-semibold text-gray-700">Location</p>
-                  <p class="text-gray-900"><%= @event.location.name %></p>
-                </div>
-              <% end %>
-
-              <% if @event.videoconference_url.present? %>
-                <div>
-                  <p class="font-semibold text-gray-700">Videoconference URL</p>
-                  <p class="text-gray-900">
-                    <%= link_to "Join online", safe_url(@event.videoconference_url), target: "_blank", rel: "noopener noreferrer", class: "text-blue-600 hover:underline" %>
-                  </p>
-                </div>
-              <% end %>
-
-              <%= render "events/registration_section", event: @event %>
-
-              <% if @event.registration_close_date %>
-                <div>
-                  <p class="font-semibold text-gray-700">Registration Close Date</p>
-
-                  <p class="text-gray-900">
-                    <%= @event.registration_close_date&.strftime("%B %-d, %Y %l:%M %P") || "—" %>
-                  </p>
-                </div>
-              <% end %>
-            </div>
-          </div>
-          <!-- Right Column -->
-          <div class="md:col-span-2 space-y-6">
-            <!-- Assets -->
-            <%= render "assets/display_assets", resource: @event %>
-          </div>
-        </div>
-        <!-- FULL-WIDTH DESCRIPTION -->
-        <div class="mt-6 md:col-span-5">
-          <%= @event.rhino_description %>
-        </div>
-        <p class="text-sm text-gray-500 mt-6 mb-0">All times displayed in <%= Time.zone.to_s %>.</p>
-      </div>
-    </div>
+<% if @preview %>
+  <div class="bg-amber-50 border border-amber-300 text-amber-800 rounded-lg px-4 py-3 mb-4 flex items-center justify-between">
+    <span><span class="font-medium">Preview</span> — unsaved changes</span>
+    <button onclick="window.close()" class="btn btn-secondary-outline btn-sm">Close preview</button>
   </div>
+<% else %>
+<!-- Top Right Actions -->
+<div class="flex flex-wrap justify-end gap-2 mb-4">
+  <%= link_to "Home", root_path, class: "text-sm text-gray-500 hover:text-gray-700 px-2 py-1" %>
+  <%= link_to "Events", events_path, class: "text-sm text-gray-500 hover:text-gray-700 px-2 py-1" %>
+  <% if allowed_to?(:manage?, @event) && @event.object.forms.exists?(name: "Public Registration") %>
+    <%= link_to "Register (as visitor)", new_event_public_registration_path(@event), class: "text-sm text-gray-500 hover:text-gray-700 px-2 py-1 admin-only bg-blue-100" %>
+  <% end %>
+  <% if allowed_to?(:edit?, @event) %>
+    <%= link_to "Edit", edit_event_path(@event), class: "admin-only bg-blue-100 text-sm text-gray-500 hover:text-gray-700 px-2 py-1" %>
+  <% end %>
+  <% if allowed_to?(:manage?, @event) %>
+    <%= link_to "Manage registrants", manage_event_path(@event), class: "text-sm text-gray-500 hover:text-gray-700 px-2 py-1 admin-only bg-blue-100" %>
+  <% end %>
+  <span class="inline-block text-sm"><%= render "bookmarks/editable_bookmark_button", resource: @event.object %></span>
 </div>
+<% end %>
+
+<%# ---- SOCIAL SHARE SIDEBAR ---- %>
+<% share_url = event_url(@event) %>
+<% share_title = @event.title %>
+<% encoded_url = CGI.escape(share_url) %>
+<% encoded_title = CGI.escape(share_title) %>
+<% linkedin_share = "https://www.linkedin.com/sharing/share-offsite/?url=#{encoded_url}" %>
+<% facebook_share = "https://www.facebook.com/sharer/sharer.php?u=#{encoded_url}" %>
+<% twitter_share = "https://twitter.com/intent/tweet?text=#{encoded_title}&url=#{encoded_url}" %>
+<div class="fixed left-4 top-1/3 z-50 flex flex-col gap-3 print:hidden">
+  <!-- LinkedIn -->
+  <%= link_to linkedin_share,
+              target: "_blank", rel: "noopener noreferrer",
+              class: "group inline-flex items-center justify-center w-11 h-11 rounded-xl bg-gray-50 shadow-sm hover:shadow-md hover:bg-[#0A66C2] transition",
+              title: "Share on LinkedIn" do %>
+    <i class="fab fa-linkedin-in text-gray-600 group-hover:text-white text-lg"></i>
+  <% end %>
+  <!-- Instagram -->
+  <%= link_to "https://www.instagram.com/awbworg",
+              target: "_blank", rel: "noopener noreferrer",
+              class: "group inline-flex items-center justify-center w-11 h-11 rounded-xl bg-gray-50 shadow-sm hover:shadow-md hover:bg-gradient-to-tr hover:from-[#F58529] hover:via-[#DD2A7B] hover:to-[#8134AF] transition",
+              title: "Follow on Instagram" do %>
+    <i class="fab fa-instagram text-gray-600 group-hover:text-white text-lg"></i>
+  <% end %>
+  <!-- Facebook -->
+  <%= link_to facebook_share,
+              target: "_blank", rel: "noopener noreferrer",
+              class: "group inline-flex items-center justify-center w-11 h-11 rounded-xl bg-gray-50 shadow-sm hover:shadow-md hover:bg-[#1877F2] transition",
+              title: "Share on Facebook" do %>
+    <i class="fab fa-facebook-f text-gray-600 group-hover:text-white text-lg"></i>
+  <% end %>
+  <!-- Twitter / X -->
+  <%= link_to twitter_share,
+              target: "_blank", rel: "noopener noreferrer",
+              class: "group inline-flex items-center justify-center w-11 h-11 rounded-xl bg-gray-50 shadow-sm hover:shadow-md hover:bg-black transition",
+              title: "Share on X" do %>
+    <i class="fa-brands fa-x-twitter text-gray-600 group-hover:text-white text-lg"></i>
+  <% end %>
+  <!-- YouTube -->
+  <%= link_to "https://www.youtube.com/@awbworg",
+              target: "_blank", rel: "noopener noreferrer",
+              class: "group inline-flex items-center justify-center w-11 h-11 rounded-xl bg-gray-50 shadow-sm hover:shadow-md hover:bg-[#FF0000] transition",
+              title: "Subscribe on YouTube" do %>
+    <i class="fa-brands fa-youtube text-gray-600 group-hover:text-white text-lg"></i>
+  <% end %>
+  <!-- Print -->
+  <button onclick="window.print();"
+          class="group inline-flex items-center justify-center w-11 h-11 rounded-xl bg-gray-50 shadow-sm hover:shadow-md hover:bg-gray-700 transition cursor-pointer"
+          title="Print this page">
+    <i class="fas fa-print text-gray-600 group-hover:text-white text-lg"></i>
+  </button>
+</div>
+
+<%# ---- HEADER CONTENT ---- %>
+<% if @event.rhino_header.present? %>
+  <div class="rhino-centered prose max-w-none prose-img:max-w-full prose-img:w-full prose-strong:text-inherit prose-em:text-inherit mb-4">
+    <%= @event.rhino_header %>
+  </div>
+<% end %>
+
+<%# ---- TITLE ---- %>
+<% if @event.autoshow_title %>
+  <div class="text-center mb-4 max-w-2xl mx-auto">
+    <% if @event.pre_title.present? %>
+      <p class="text-base font-semibold font-telefon text-gray-700 mb-2" style="font-family: 'Telefon Bold', sans-serif; font-size: 42px"><%= @event.pre_title %></p>
+    <% end %>
+    <h1 class="font-bold text-green-800" style="font-family: Lato, sans-serif; font-size: 53px"><%= @event.title %></h1>
+  </div>
+<% end %>
+
+<%# ---- EVENT DETAILS (conditional on autoshow) ---- %>
+<div class="text-center space-y-2 mb-4">
+  <% if @event.autoshow_pre_date_text && @event.pre_date_text.present? %>
+    <div class="font-bold text-blue-900 uppercase" style="font-family: Lato, sans-serif; font-size: 24px"><%= @event.pre_date_text %></div>
+  <% end %>
+
+  <% if @event.autoshow_date || @event.autoshow_time %>
+    <div class="font-bold text-blue-900 uppercase" style="font-family: Lato, sans-serif; font-size: 35px">
+      <%= @event.times(display_day: @event.autoshow_date, display_date: @event.autoshow_date, styled: true) %>
+    </div>
+  <% end %>
+
+  <% if @event.autoshow_cost && @event.labelled_cost %>
+    <div class="text-xl font-bold text-blue-900 uppercase" style="font-family: Lato, sans-serif"><%= @event.labelled_cost %></div>
+  <% end %>
+
+  <% if @event.autoshow_location && @event.location.present? %>
+    <div class="text-base text-gray-700"><%= @event.location.name %></div>
+  <% end %>
+
+  <%= render "events/videoconference_link", event: @event %>
+
+  <% if @event.autoshow_registration_close && @event.registration_close_date %>
+    <div class="text-base text-gray-700">
+      <% tz_abbr = @event.start_date.in_time_zone(Time.zone).strftime("%Z") %>
+      Registration closes <%= @event.registration_close_date.in_time_zone(Time.zone).strftime("%B %-d, %Y %l:%M %P") %> <%= tz_abbr %>
+    </div>
+  <% end %>
+
+  <% if @event.autoshow_registration %>
+    <div class="mt-4">
+      <%= render "events/registration_section", event: @event, instance: 1, button_text: "Register" %>
+    </div>
+  <% end %>
+</div>
+
+<%# ---- DESCRIPTION ---- %>
+<% if @event.rhino_description.present? %>
+  <div class="prose max-w-none prose-img:max-w-full prose-img:w-full prose-strong:text-inherit prose-em:text-inherit mb-12">
+    <%= @event.rhino_description %>
+  </div>
+<% end %>
+
+<%# ---- GALLERY IMAGES ---- %>
+<div class="mb-12">
+  <%= render "assets/display_gallery_media", resource: @event, link: true %>
+</div>
+
+<% if @preview %>
+  <div class="bg-amber-50 border border-amber-300 text-amber-800 rounded-lg px-4 py-3 mt-4 flex items-center justify-between">
+    <span><span class="font-medium">Preview</span> — unsaved changes</span>
+    <button onclick="window.close()" class="btn btn-secondary-outline btn-sm">Close preview</button>
+  </div>
+<% end %>

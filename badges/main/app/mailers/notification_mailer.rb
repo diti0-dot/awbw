@@ -4,13 +4,12 @@ class NotificationMailer < ApplicationMailer
   def event_registration_confirmation_fyi(notification)
     @event_registration = notification.noticeable
     @event = @event_registration.event.decorate
-    @user = @event_registration.registrant
-    @person = @user.person
+    @person = @event_registration.registrant
     @notification_type = "Event registration"
 
     # Send email to the admin
     mail(
-      subject: "AWBW portal: new event registration by #{@user.full_name} to #{@event.title}"
+      subject: "AWBW Portal: new event registration by #{@person.full_name} to #{@event.title}"
     )
   end
 
@@ -32,7 +31,7 @@ class NotificationMailer < ApplicationMailer
     @answers     = @noticeable.report_form_field_answers if @noticeable.respond_to?(:report_form_field_answers)
 
     mail(
-      subject: "AWBW portal: new #{@noticeable_klass} submission by #{@user.full_name}"
+      subject: "AWBW Portal: new #{@noticeable_klass} submission by #{@user.full_name}"
     )
   end
 
@@ -47,12 +46,12 @@ class NotificationMailer < ApplicationMailer
       @report      = @noticeable
       @attachments = extract_attachments(@noticeable)
       @quotes      = @report.quotes if @report.respond_to?(:quotes)
-      @user        = @noticeable.respond_to?(:user) ? @noticeable.user : @noticeable.respond_to?(:created_by) ? @noticeable.created_by : nil
+      @user        = @noticeable.respond_to?(:created_by) ? @noticeable.created_by : nil
       @answers     = @report.report_form_field_answers if @report.respond_to?(:report_form_field_answers)
     end
 
     mail(
-      subject: "AWBW portal: new #{@type} submission by #{@user.full_name}"
+      subject: "AWBW Portal: new #{@type} submission by #{@user.full_name}"
     )
   end
 
@@ -63,7 +62,7 @@ class NotificationMailer < ApplicationMailer
 
     # Send email to the admin
     mail(
-      subject: "AWBW portal: user password reset by #{@user.full_name}"
+      subject: "AWBW Portal: user password reset by #{@user.full_name}"
     )
   end
 
@@ -78,12 +77,12 @@ class NotificationMailer < ApplicationMailer
       @report      = @noticeable
       @attachments = extract_attachments(@noticeable)
       @quotes      = @report.quotes if @report.respond_to?(:quotes)
-      @user        = @noticeable.respond_to?(:user) ? @noticeable.user : @noticeable.respond_to?(:created_by) ? @noticeable.created_by : nil
+      @user        = @noticeable.respond_to?(:created_by) ? @noticeable.created_by : nil
       @answers     = @report.report_form_field_answers if @report.respond_to?(:report_form_field_answers)
     end
 
     mail(
-      subject: "AWBW portal: new WorkshopLog submission by #{@user.full_name}"
+      subject: "AWBW Portal: new WorkshopLog submission by #{@user.full_name}"
     )
   end
 

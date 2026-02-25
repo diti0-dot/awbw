@@ -1,0 +1,25 @@
+<% content_for(:page_bg_class, "admin-only bg-blue-100") %>
+<div class="max-w-5xl mx-auto <%= DomainTheme.bg_class_for(:events) %> border border-gray-200 rounded-xl shadow p-6">
+  <div class="flex flex-wrap items-center justify-between gap-4 mb-6">
+    <div>
+      <%= link_to "← Event", event_path(@event), class: "text-sm text-gray-500 hover:text-gray-700 mb-2 inline-block" %>
+      <h1 class="text-2xl font-semibold text-gray-900">
+        Manage registrants
+      </h1>
+      <p class="text-gray-600 mt-1">
+        <%= @event.title %>
+      </p>
+    </div>
+    <div class="flex gap-2">
+      <%= link_to "Download CSV", manage_event_path(@event, format: :csv), class: "text-sm text-gray-500 hover:text-gray-700 px-2 py-1", data: { turbo_frame: "_top" } %>
+      <%= link_to "View", event_path(@event), class: "text-sm text-gray-500 hover:text-gray-700 px-2 py-1" %>
+      <% if allowed_to?(:edit?, @event) %>
+        <%= link_to "Edit", edit_event_path(@event), class: "text-sm text-gray-500 hover:text-gray-700 px-2 py-1" %>
+      <% end %>
+    </div>
+  </div>
+
+  <%= render "manage_search" %>
+
+  <%= render "manage_results" %>
+</div>

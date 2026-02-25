@@ -1,15 +1,14 @@
-<div class="min-h-screen py-8">
-  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-    <div class="<%= DomainTheme.bg_class_for(:tutorials) %> border border-gray-200 rounded-xl shadow-md hover:shadow-lg transition-shadow duration-200 p-6">
-      <!-- Top Right Utility Buttons -->
-      <div class="text-right mb-4 space-x-1">
-        <%= link_to "Tutorials", tutorials_path, class: "btn btn-secondary-outline" %>
-        <%= link_to "Dashboard", root_path, class: "btn btn-secondary-outline" %>
+<% content_for(:page_bg_class, "admin-or-public-or-authpublished") %>
+<div class="<%= DomainTheme.bg_class_for(:resources) %> border border-gray-200 rounded-xl shadow p-6">
+      <!-- Top Right Utility Links -->
+      <div class="flex flex-wrap justify-end gap-2 mb-4">
+        <%= link_to "Home", root_path, class: "text-sm text-gray-500 hover:text-gray-700 px-2 py-1" %>
+        <%= link_to Tutorial.model_name.human(count: 2), tutorials_path, class: "text-sm text-gray-500 hover:text-gray-700 px-2 py-1" %>
         <% if allowed_to?(:edit?, @tutorial) %>
-          <%= link_to("Edit", edit_tutorial_path(@tutorial),
-                      class: "admin-only bg-blue-100 btn btn-primary-outline") %>
+          <%= link_to "Edit", edit_tutorial_path(@tutorial),
+                      class: "admin-only bg-blue-100 text-sm text-gray-500 hover:text-gray-700 px-2 py-1" %>
         <% end %>
-        <span class="inline-block text-md">
+        <span class="inline-block text-sm">
           <%= render "bookmarks/editable_bookmark_button", resource: @tutorial.object %>
         </span>
       </div>
@@ -37,7 +36,7 @@
           </div>
         <% end %>
 
-        <%= render "assets/display_assets", resource: @tutorial %>
+        <%= render "assets/display_assets", resource: @tutorial, link: true %>
 
 
         <!-- Main Text -->
@@ -46,6 +45,4 @@
         </div>
 
       </div>
-    </div>
-  </div>
 </div>

@@ -10,6 +10,9 @@ RSpec.describe "story_ideas/new", type: :view do
     assign(:workshops, [])
     assign(:organizations, [])
     assign(:users, [])
+    assign(:sectors, [])
+    assign(:story_population_categories, [])
+    assign(:story_population_type, nil)
   end
 
   context "when current_user is a regular user" do
@@ -24,10 +27,10 @@ RSpec.describe "story_ideas/new", type: :view do
         assert_select "select[name=?]", "story_idea[windows_type_id]"
         assert_select "select[name=?]", "story_idea[organization_id]"
         assert_select "select[name=?]", "story_idea[workshop_id]"
-        assert_select "textarea[name=?]", "story_idea[body]"
+        assert_select "input[name=?][type=?]", "story_idea[rhino_body]", "hidden"
         assert_select "textarea[name=?]", "story_idea[youtube_url]"
         assert_select "input[name=?]", "story_idea[permission_given]"
-        assert_select "select[name=?]", "story_idea[publish_preferences]"
+        assert_select "select[name=?]", "story_idea[author_credit_preference]"
       end
     end
   end

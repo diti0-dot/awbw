@@ -5,5 +5,10 @@ import "rhino-editor/exports/styles/trix.css";
 
 import "chartkick/chart.js"
 
+import "@rails/activestorage"
+import * as ActiveStorage from "@rails/activestorage";
+ActiveStorage.start();
+
 import "./controllers";
 import "./rhino/extend-editor.js";
+import "./turbo-events";

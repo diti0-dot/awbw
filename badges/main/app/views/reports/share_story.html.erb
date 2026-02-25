@@ -15,7 +15,7 @@
            <div class='form-group'>
              <%= f.label "Person" %>
              <%= f.text_field :user, disabled: false, value: current_user.name, class:"form-control" %>
-             <%= f.hidden_field :user_id, value: current_user.id %>
+             <%= f.hidden_field :created_by_id, value: current_user.id %>
              <%= f.hidden_field :type %>
              <%= f.hidden_field :windows_type_id, value: @report.windows_type_id %>
              <%= f.hidden_field :id, value: @report.id %>
@@ -114,7 +114,6 @@ class:"selectpicker form-control form-control-custom" %>
 
 
 <script type="text/javascript">
-  $('#select-workshop').select2();
 
   function set_error_workshop_name() {
     $('#workshop_name').addClass('error-custom');

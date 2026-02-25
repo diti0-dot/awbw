@@ -1,10 +1,11 @@
+<% content_for(:page_bg_class, "admin-or-owner") %>
 <p class='alert'>
 A monthly report has already been submitted for this month. Please contact your AWBW program manager.
 </p>
 <%= form_for @report, as: :report, url: report_path( @report ), method: :put do |f| %>
   <hr>
  <% unless params[:form_builder_id] == "7" %>
-   <h4>Report Type</h4>
+   <h4>Report type</h4>
   </hr>
 
   <!-- ######### row 1 ##### -->
@@ -18,7 +19,7 @@ A monthly report has already been submitted for this month. Please contact your 
     </div>
 
     <div class='col-md-8'>
-      <%= label_tag 'Reporting for the Month Of' %>
+      <%= label_tag 'Reporting for the month of' %>
       <!-- date select -->
       <%= f.date_select :date,
           { discard_day: true, selected: Date.new( @year.to_i, @month.to_i ), use_hidden: true }, {:onchange => "" } %>
@@ -41,7 +42,7 @@ A monthly report has already been submitted for this month. Please contact your 
       <div class='form-group'>
         <%= f.label "Person" %>
         <%= f.text_field :user, disabled: false, value: current_user.name, class:"form-control" %>
-        <%= f.hidden_field :user_id, value: current_user.id %>
+        <%= f.hidden_field :created_by_id, value: current_user.id %>
         <%= f.hidden_field :type %>
         <%= f.hidden_field :windows_type_id, value: @report.windows_type_id %>
         <%= f.hidden_field :id, value: @report.id %>
@@ -142,7 +143,7 @@ A monthly report has already been submitted for this month. Please contact your 
 
               <div class="row">
                 <div class="col-xs-2">
-                  <img src="<%= @report.image.file.url %>" class="portrait-img"/>
+                  <%= image_tag @report.image.file, class: "portrait-img" %>
                   </div>
                </div>
             </div>
@@ -184,6 +185,8 @@ A monthly report has already been submitted for this month. Please contact your 
       <%= f.button :submit, class: "btn btn-primary" %>
     </div>
   </div>
+  
+  <%= render "shared/audit_info", resource: @report %>
 <% end %>
 
 <script>

@@ -1,5 +1,8 @@
 class Story < ApplicationRecord
+  include AuthorCreditable
   include Featureable, Publishable, TagFilterable, Trendable, WindowsTypeFilterable, RichTextSearchable
+
+  has_rich_text :rhino_body
 
   belongs_to :created_by, class_name: "User"
   belongs_to :updated_by, class_name: "User"
@@ -26,13 +29,12 @@ class Story < ApplicationRecord
   has_many :categories, through: :categorizable_items
   has_many :sectors, through: :sectorable_items
 
-  has_rich_text :rhino_body
-
   # Validations
   validates :windows_type_id, presence: true
   validates :created_by_id, presence: true
   validates :updated_by_id, presence: true
   validates :title, presence: true, uniqueness: true
+  validates :rhino_body, presence: true
 
   # Nested attributes
   accepts_nested_attributes_for :primary_asset, allow_destroy: true, reject_if: :all_blank
@@ -50,16 +52,30 @@ class Story < ApplicationRecord
 
   # Scopes
   # See Featureable, Publishable, TagFilterable, Trendable, WindowsTypeFilterable, RichTextSearchable
-  scope :story_name, ->(story_name) {
-    story_name.present? ? where("stories.name LIKE ?", "%#{story_name}%") : all }
+  scope :by_year, ->(year) { where(created_at: Date.new(year.to_i)..Date.new(year.to_i).end_of_year) }
+  scope :story_name, ->(story_name) { story_name.present? ? where("stories.name LIKE ?", "%#{story_name}%") : all }
+  scope :facilitator_spotlights, ->(value = nil) {
+    return where.not(spotlighted_facilitator_id: nil) if value.blank?
+    ActiveModel::Type::Boolean.new.cast(value) ?
+      where.not(spotlighted_facilitator_id: nil) :
+      where(spotlighted_facilitator_id: nil)
+  }
 
   def self.search_by_params(params)
     conditions = {}
     conditions[:title] = params[:title] if params[:title].present?
     conditions[:query] = params[:query] if params[:query].present?
-    conditions[:published] = params[:published] if params[:published].present?
-    stories = self.search(conditions)
 
+    # Use visibility checkbox filters when present; otherwise pass published to SearchCop
+    if visibility_params_present?(params)
+      stories = apply_visibility_filters(self.search(conditions), params)
+    else
+      conditions[:published] = params[:published] if params[:published].present?
+      stories = self.search(conditions)
+    end
+
+    stories = stories.by_year(params[:year]) if params[:year].present? && params[:year].match?(/\A\d{4}\z/)
+    stories = stories.facilitator_spotlights(params[:facilitator_spotlights]) if params[:facilitator_spotlights].present?
     stories = stories.sector_names_all(params[:sector_names_all]) if params[:sector_names_all].present?
     stories = stories.category_names_all(params[:category_names_all]) if params[:category_names_all].present?
     stories
@@ -81,8 +97,13 @@ class Story < ApplicationRecord
     organization&.organization_description
   end
 
+  def sector_names_all
+    sectors.pluck(:name)
+  end
+
   def attach_assets_from_idea!
     return unless story_idea
+    assets.destroy_all
     story_idea.assets.find_each do |asset|
       new_asset = assets.build(type: asset.type)
       new_asset.file.attach(asset.file.blob)

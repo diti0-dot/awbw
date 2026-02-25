@@ -13,7 +13,7 @@ RSpec.describe "/resources", type: :request do
       published: true,
       kind: Resource::PUBLISHED_KINDS.first,
       windows_type_id: windows_type.id,
-      user_id: user.id
+      created_by_id: user.id
     }
   end
 
@@ -22,7 +22,7 @@ RSpec.describe "/resources", type: :request do
       title: nil,
       body: "",
       kind: nil,
-      user_id: user.id      # REQUIRED
+      created_by_id: user.id      # REQUIRED
     }
   end
 
@@ -78,10 +78,10 @@ RSpec.describe "/resources", type: :request do
         }.to change(Resource, :count).by(1)
       end
 
-      it "redirects to the resources index" do
+      it "redirects to the created resource" do
         post resources_url, params: { resource: valid_attributes }
 
-        expect(response).to redirect_to(resources_url)
+        expect(response).to redirect_to(resource_url(Resource.last))
       end
     end
 
@@ -114,11 +114,11 @@ RSpec.describe "/resources", type: :request do
         expect(resource.title).to eq("Updated Resource Title")
       end
 
-      it "redirects to the resources index" do
+      it "redirects to the updated resource" do
         resource = Resource.create! valid_attributes
         patch resource_url(resource), params: { resource: new_attributes }
 
-        expect(response).to redirect_to(resources_url)
+        expect(response).to redirect_to(resource_url(resource))
       end
     end
 

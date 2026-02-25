@@ -1,11 +1,11 @@
 class WorkshopsController < ApplicationController
-  include AhoyTracking
+  include AhoyTracking, TagAssignable
   skip_before_action :authenticate_user!, only: [ :index, :show ]
 
   def index
     authorize!
-    @category_types = CategoryType.published.order(:name).decorate
-    @sectors        = Sector.published
+    @category_types = CategoryType.published.general.order(:name).decorate
+    @sectors        = Sector.published.order(:name)
     @windows_types  = WindowsType.all
 
     if turbo_frame_request?
@@ -15,12 +15,13 @@ class WorkshopsController < ApplicationController
       track_index_intent(Workshop, search_service.workshops, params)
 
       @workshops = authorized_scope(search_service.workshops
-                                                  .includes(:categories, :windows_type, :user, :bookmarks,
-                                                            user: [ :person ], primary_asset: [ :file_attachment ]))
+                                                  .includes(:categories, :windows_type, :bookmarks,
+                                                            created_by: [ :person ], primary_asset: [ :file_attachment ]))
                                                   .paginate(page: params[:page], per_page: params[:per_page] || 12)
 
       render :workshop_results
     else
+      @sort = params[:sort].presence || "title"
       render :index
     end
   end
@@ -79,7 +80,7 @@ class WorkshopsController < ApplicationController
       @workshop = WorkshopFromIdeaService.new(@workshop_idea, user: current_user).call
       authorize! @workshop
     else
-      @workshop = Workshop.new(user: current_user)
+      @workshop = Workshop.new(created_by: current_user)
       authorize! @workshop
     end
     set_form_variables
@@ -106,7 +107,7 @@ class WorkshopsController < ApplicationController
 
     if success
       flash[:notice] = "Workshop created successfully."
-      redirect_to workshops_path(sort: "created")
+      redirect_to @workshop
     else
       set_form_variables
       flash.now[:alert] = "Unable to save the workshop."
@@ -164,7 +165,7 @@ class WorkshopsController < ApplicationController
 
     if success
       flash[:notice] = "Workshop updated successfully."
-      redirect_to workshops_path
+      redirect_to @workshop
     else
       set_form_variables
       flash[:alert] = "Unable to update the workshop."
@@ -173,41 +174,27 @@ class WorkshopsController < ApplicationController
   end
 
 
-  def search
-    @params = params[:search]
-    @query = params[:search][:query] if @params
-    @workshops = Search.new.search(@params, current_user)
-
-    if @workshops.paginate(page: params[:search][:page], per_page: workshops_per_page).empty?
-      @workshops = @workshops.paginate(page: 1, per_page: workshops_per_page)
-    else
-      @workshops = @workshops.paginate(page: params[:search][:page], per_page: workshops_per_page)
-    end
-
-    authorize! @workshops
-
-    load_sortable_fields
-    load_metadata
-
-    render :index
-  end
-
   private
 
   def set_show
     @quotes = Quote.where(workshop_id: @workshop.id).published
     @leader_spotlights = @workshop.associated_resources.leader_spotlights.where(published: true)
-    @workshop_variations = @workshop.workshop_variations.published
+    @workshop_variations = authorized_scope(@workshop.workshop_variations)
+                             .includes(:windows_type, :created_by, primary_asset: [ :file_attachment ])
+                             .order(created_at: :desc)
     @sectors = @workshop.sectorable_items.map { |item| item.sector if item.sector.published? }.compact if @workshop.sectorable_items.any?
     @mentions = @workshop.all_mentions_grouped
   end
 
 
   def set_form_variables
-    @age_ranges = Category.includes(:category_type).where("category_types.name = 'AgeRange'").pluck(:name)
-    @potential_series_workshops = Workshop.published.where.not(id: @workshop.id).order(:title)
+    @age_ranges = Category.includes(:category_type)
+                          .where("category_types.name = 'AgeRange'").pluck(:name)
+    potential_series = authorized_scope(Workshop.published).includes(:windows_type)
+    potential_series = potential_series.where.not(id: @workshop.id) if @workshop.persisted?
+    @potential_series_workshops = authorized_scope(potential_series).order(:title)
     @windows_types = WindowsType.all
-    @workshop_ideas = WorkshopIdea.order(created_at: :desc)
+    @workshop_ideas = authorized_scope(WorkshopIdea.order(created_at: :desc))
                                   .map { |wi|
                                     [ "#{wi.created_at.strftime("%Y-%m-%d")
                                     } - (#{wi.created_by.full_name}): #{wi.title}", wi.id ] }
@@ -217,7 +204,7 @@ class WorkshopsController < ApplicationController
         .published
         .order(:position, :name)
         .group_by(&:category_type)
-        .select { |type, _| type.nil? || type.published? }
+        .select { |type, _| type.nil? || (type.published? && !type.story_specific? && !type.profile_specific?) }
         .sort_by { |type, _| type&.name.to_s.downcase }
 
     @sectors = Sector.published.order(:name)
@@ -226,33 +213,14 @@ class WorkshopsController < ApplicationController
     @workshop.gallery_assets.build
   end
 
-  def assign_associations(workshop)
-    # Convert checkbox values into categorizable_items updates
-    selected_category_ids = Array(params[:workshop][:category_ids]).reject(&:blank?).map(&:to_i)
-    workshop.categories = Category.where(id: selected_category_ids)
-
-    # Convert checkbox values into sectorable_items updates
-    selected_sector_ids = Array(params[:workshop][:sector_ids]).reject(&:blank?).map(&:to_i)
-    workshop.sectors = Sector.where(id: selected_sector_ids)
-    workshop.save!
-  end
-
   def log_workshop_error(action, error)
     Rails.logger.error "Workshop #{action} failed: #{error.class} - #{error.message}\n#{error.backtrace.join("\n")}"
-  end
-
-  def workshops_per_page
-    view_all_workshops? ? @workshops.published.size : 12
-  end
-
-  def view_all_workshops?
-    params[:search][:view_all] == "1"
   end
 
   def workshop_params
     params.require(:workshop).permit(
       :title, :featured, :published,
-      :full_name, :user_id, :windows_type_id, :workshop_idea_id,
+      :full_name, :created_by_id, :windows_type_id, :workshop_idea_id, :author_credit_preference,
       :month, :year,
       :publicly_visible,
       :publicly_featured,
@@ -322,13 +290,5 @@ class WorkshopsController < ApplicationController
                                             :series_description, :series_description_spanish,
                                             :position, :_destroy ]
     )
-  end
-
-  def load_sortable_fields
-    @sortable_fields = WindowsType.where(short_name: "COMBINED")
-  end
-
-  def load_metadata
-    @metadata = CategoryType.includes(:categories).published.decorate
   end
 end

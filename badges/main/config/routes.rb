@@ -18,6 +18,9 @@ Rails.application.routes.draw do
 
   # mount Ckeditor::Engine, at: '/admin/ckeditor', as: 'ckeditor'
   apipie
+  authenticate :user, ->(user) { user.super_user? } do
+    mount Blazer::Engine, at: "blazer"
+  end
   devise_for :users,
              controllers: { registrations: "registrations",
                             confirmations: "confirmations",
@@ -30,13 +33,16 @@ Rails.application.routes.draw do
   get "welcome/:welcome_instructions_token", to: "welcome#show", as: "user_welcome"
   patch "welcome/:welcome_instructions_token", to: "welcome#update", as: "user_welcome_update"
   resources :users, only: [ :new, :index, :show, :edit, :update, :create, :destroy ] do
+    collection do
+      get :check_duplicates
+    end
     member do
-      get :generate_person
       post :send_reset_password_instructions
       post :send_welcome_instructions
       post :toggle_lock_status
       post :confirm_email
     end
+    resources :comments, only: [ :index, :create ]
   end
 
   post "workshop_logs/validate_new", to: "workshop_logs#validate_new"
@@ -69,22 +75,48 @@ Rails.application.routes.draw do
       get :personal
     end
   end
-  resources :categories
-  resources :community_news
-  resources :event_registrations
-  resources :events do
-    resource :registrations, only: %i[ create destroy ], module: :events, as: :registrant_registration
+  resources :category_types
+  resources :categories do
+    collection do
+      get :dedupe_index
+      get :dedupe_preview
+      post :dedupe_execute
+      patch :dedupe_update_keep
+    end
   end
-  resources :people
+  resources :community_news
+  resources :event_registrations do
+    resources :comments, only: [ :index, :create ]
+  end
+  resources :events do
+    member do
+      get :manage
+      patch :preview
+      post :copy_registration_form
+    end
+    resource :registrations, only: %i[ create destroy ], module: :events, as: :registrant_registration
+    resource :public_registration, only: [ :new, :create, :show ], module: :events
+  end
+  resources :people do
+    collection do
+      get :check_duplicates
+    end
+    resources :comments, only: [ :index, :create ]
+  end
   resources :faqs
   resources :notifications, only: [ :index, :show ] do
     member do
       post :resend
     end
   end
-  resources :organizations
+  resources :organizations do
+   member do
+     get :populations_served
+   end
+   resources :comments, only: [ :index, :create ]
+ end
   resources :organization_statuses
-  resources :organization_people
+  resources :affiliations
   resources :quotes
 
   resources :monthly_reports
@@ -102,20 +134,19 @@ Rails.application.routes.draw do
 
   resources :resources do
     get :download
+  end
+  resources :sectors do
     collection do
-      post :search
+      get :dedupe_index
+      get :dedupe_preview
+      post :dedupe_execute
+      patch :dedupe_update_keep
     end
   end
-  resources :sectors
+  get "search/:model", to: "search#index"
   resources :story_ideas
-  resources :stories do
-    collection do
-      get :share_portal
-    end
-    member do
-      get :show_share_portal
-    end
-  end
+  resources :stories
+  resources :story_shares, only: [ :index, :show ]
   resources :tutorials
   resources :user_forms
   resources :windows_types
@@ -124,15 +155,12 @@ Rails.application.routes.draw do
   resources :workshop_log_creation_wizard
   resources :workshop_variation_ideas
   resources :workshop_variations
-  resources :workshops do
-    collection do
-      post :search
-    end
-  end
+  resources :workshops
 
   resources :workshop_mentions, only: [ :index ]
   resources :resource_mentions, only: [ :index ]
   resources :rich_text_asset_mentions, only: [ :index ]
+  resources :event_mentions, only: [ :index ]
 
   namespace :api do
     namespace :v1 do
@@ -142,13 +170,14 @@ Rails.application.routes.draw do
     end
   end
 
-  namespace :dashboard do
+  namespace :home do
     resources :workshops, only: :index
     resources :resources, only: :index
     resources :stories, only: :index
     resources :community_news, only: :index
     resources :events, only: :index
+    resources :video_gallery, only: :index
   end
 
-  root to: "dashboard#index"
+  root to: "home#index"
 end

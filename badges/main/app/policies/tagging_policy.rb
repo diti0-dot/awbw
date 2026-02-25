@@ -5,6 +5,10 @@ class TaggingPolicy < ApplicationPolicy
     true
   end
 
+  def matrix?
+    admin?
+  end
+
   #
   # Scoping
   # See https://actionpolicy.evilmartians.io/#/scoping

@@ -1,12 +1,12 @@
 class UsersController < ApplicationController
   before_action :set_user, only: [ :show, :edit, :update, :destroy,
-                                   :generate_person, :toggle_lock_status, :confirm_email,
+                                   :toggle_lock_status, :confirm_email,
                                    :send_welcome_instructions, :send_reset_password_instructions ]
 
   def index
     authorize!
     per_page = params[:number_of_items_per_page].presence || 25
-    base_scope = authorized_scope(User.includes(avatar_attachment: :blob,
+    base_scope = authorized_scope(User.includes(:created_by, :updated_by,
                                                 person: { avatar_attachment: :blob }))
     filtered = base_scope.search_by_params(params).order(:first_name, :last_name)
     @users_count = filtered.count
@@ -16,6 +16,23 @@ class UsersController < ApplicationController
   def show
     authorize! @user
     @user = User.find(params[:id]).decorate
+    @comments = @user.comments.includes(:created_by).newest_first.paginate(page: params[:comments_page], per_page: 5)
+
+    user_auth_events = Ahoy::Event
+      .where("name LIKE 'auth.%' OR name LIKE 'update.user'")
+      .where(
+        "(CAST(JSON_EXTRACT(properties, '$.record_id') AS UNSIGNED) = :id AND JSON_UNQUOTE(JSON_EXTRACT(properties, '$.record_type')) = 'User') OR " \
+        "(CAST(JSON_EXTRACT(properties, '$.resource_id') AS UNSIGNED) = :id AND JSON_UNQUOTE(JSON_EXTRACT(properties, '$.resource_type')) = 'User')",
+        id: @user.id
+      )
+
+    @last_admin_event = user_auth_events.where(name: %w[auth.admin_granted auth.admin_revoked]).order(time: :desc).first
+    @last_lock_event = user_auth_events.where(name: %w[auth.account_locked auth.account_unlocked]).order(time: :desc).first
+
+    @account_events = user_auth_events
+      .includes(:user)
+      .order(time: :desc)
+      .paginate(page: params[:page], per_page: 10)
   end
 
   def new
@@ -25,6 +42,7 @@ class UsersController < ApplicationController
   end
 
   def edit
+    @user = User.includes(comments: [ :created_by, :updated_by ]).find(params[:id])
     authorize! @user
     set_form_variables
   end
@@ -32,6 +50,19 @@ class UsersController < ApplicationController
   def create
     @user = User.new(user_params)
     authorize! @user
+
+    # Check for duplicate email before saving
+    unless params[:skip_duplicate_check].present?
+      email = @user.email
+      if email.present? && !email.downcase.end_with?("@example.com")
+        person_id = params[:person_id].presence || params.dig(:user, :person_id).presence || @user.person_id
+        duplicates = find_duplicate_users(email, exclude_person_id: person_id)
+        if duplicates.any?
+          redirect_to check_duplicates_users_path(email: email, person_id: person_id)
+          return
+        end
+      end
+    end
 
     # do NOT have Devise send confirmation email - we'll handle that manually after creation via send_welcome_instructions
     @user.skip_confirmation_notification!
@@ -43,14 +74,24 @@ class UsersController < ApplicationController
     # assign person
     person_id = params[:person_id].presence || params.dig(:user, :person_id).presence
     @user.person = Person.find(person_id) if person_id
+    @user.created_by = current_user
+    @user.updated_by = current_user
 
     if @user.save
-      # @user.notifications.create(notification_type: 0)
-      redirect_to users_path(search: @user.email), notice: "User was successfully created."
+      redirect_to @user, notice: "User was successfully created."
     else
       set_form_variables
       render :new, status: :unprocessable_content
     end
+  end
+
+  def check_duplicates
+    authorize!
+
+    @email = params[:email]
+    @person_id = params[:person_id]
+    @duplicates = find_duplicate_users(@email, exclude_person_id: @person_id)
+    @blocked = @duplicates.any? { |d| d[:blocked] }
   end
 
   def update
@@ -62,9 +103,16 @@ class UsersController < ApplicationController
       bypass_sign_in(@user)
     end
 
-    if @user.update(user_params.except(:password, :password_confirmation))
-      # @user.notifications.create(notification_type: 1)
-      redirect_to users_path, notice: "User was successfully updated."
+    @user.assign_attributes(user_params.except(:password, :password_confirmation))
+    @user.updated_by = current_user
+    @user.comments.select(&:new_record?).each { |c| c.created_by = current_user; c.updated_by = current_user }
+    @user.comments.select(&:changed?).each { |c| c.updated_by = current_user }
+
+    if @user.save
+      bypass_sign_in(@user) if @user == current_user
+      notice = "User was successfully updated."
+      notice += " A confirmation email has been sent to #{@user.unconfirmed_email}." if @user.unconfirmed_email.present? && @user.saved_change_to_unconfirmed_email?
+      redirect_to @user, notice: notice
     else
       flash[:alert] = "Unable to update user."
       set_form_variables
@@ -108,24 +156,6 @@ class UsersController < ApplicationController
             locals: { user: @user }
           )
         end
-      end
-    end
-  end
-
-  # ---------------------------------------------------------
-  # PERSON
-  # ---------------------------------------------------------
-  def generate_person
-    authorize! @user
-
-    if @user.person.present?
-      redirect_to @user.person and return
-    else
-      @person = PersonFromUserService.new(user: @user).call
-      if @person.save
-        redirect_to @person, notice: "Person was successfully created for this user." and return
-      else
-        redirect_to @user, alert: "Unable to create person: #{@person.errors.full_messages.join(", ")}" and return
       end
     end
   end
@@ -217,7 +247,7 @@ class UsersController < ApplicationController
 
   def set_form_variables
     set_person
-    @user.person.organization_people.first || @user.person.organization_people.build if @user.person
+    @user.person.affiliations.first || @user.person.affiliations.build if @user.person
     organizations = authorized_scope(Organization.all)
     @organizations_array = organizations.order(:name).pluck(:name, :id)
   end
@@ -230,17 +260,61 @@ class UsersController < ApplicationController
     params.require(:user).permit(:current_password, :password, :password_confirmation)
   end
 
+  def find_duplicate_users(email, exclude_person_id: nil)
+    return [] if email.blank?
+
+    email_lower = email.downcase
+    duplicates = []
+
+    # Check existing users with same email
+    users_scope = User.where("LOWER(email) = ?", email_lower).includes(:person)
+    users_scope = users_scope.where.not(person_id: exclude_person_id) if exclude_person_id
+    users_scope.limit(10).each do |user|
+      duplicates << {
+        id: user.id,
+        name: user.person&.full_name || "#{user.first_name} #{user.last_name}".strip,
+        person_id: user.person_id,
+        email: user.email,
+        type: "user",
+        blocked: true
+      }
+    end
+
+    # Check people with matching email or secondary email
+    exclude_person_ids = duplicates.map { |d| d[:person_id] }.compact
+    exclude_person_ids << exclude_person_id.to_i if exclude_person_id
+    people_scope = Person.includes(:user)
+          .where("LOWER(people.email) = :email OR LOWER(people.email_2) = :email", email: email_lower)
+    people_scope = people_scope.where.not(id: exclude_person_ids) if exclude_person_ids.any?
+    people_scope.limit(10).each do |person|
+      primary_match = person.email&.downcase == email_lower
+      duplicates << {
+        id: person.id,
+        name: person.full_name,
+        email: primary_match ? person.email : person.email_2,
+        email_field: primary_match ? "primary" : "secondary",
+        has_user: person.user.present?,
+        user_email: person.user&.email,
+        type: "person",
+        blocked: false
+      }
+    end
+
+    duplicates
+  end
+
   def user_params
     params.require(:user).permit(
-      :email, :comment, :person_id, :inactive, :primary_address, :time_zone, :super_user,
+      :email, :comment, :person_id, :inactive, :locked, :primary_address, :time_zone, :super_user,
 
       ##### legacy to remove later
-      :agency_id, :legacy, :legacy_id, :subscribecode, :avatar, :first_name, :last_name, # legacy to remove later
+      :agency_id, :legacy, :legacy_id, :subscribecode, :first_name, :last_name, # legacy to remove later
       :address, :address2, :city, :city2, :state, :state2, :zip, :zip2, # legacy to remove later
       :phone, :phone2, :phone3, :birthday, :best_time_to_call, :notes, # legacy to remove later
       #####
 
-      organization_people_attributes: [ :id, :organization_id, :position, :title, :inactive, :_destroy ],
+      comments_attributes: [ :id, :body ],
+      affiliations_attributes: [ :id, :organization_id, :position, :title, :inactive, :primary_contact, :start_date, :end_date, :_destroy ],
     )
   end
 end

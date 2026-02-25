@@ -1,14 +1,15 @@
 class Organization < ApplicationRecord
-  include TagFilterable, Trendable, WindowsTypeFilterable # Publishable
+  include RemoteSearchable, TagFilterable, Trendable, WindowsTypeFilterable # Publishable
   belongs_to :organization_status
   belongs_to :organization_obligation, optional: true
   belongs_to :location, optional: true # TODO - remove Location if unused
   belongs_to :windows_type, optional: true
   has_many :addresses, as: :addressable, dependent: :destroy
   has_many :bookmarks, as: :bookmarkable, dependent: :destroy
-  has_many :organization_people, dependent: :restrict_with_error
-  has_many :people, through: :organization_people
+  has_many :affiliations, dependent: :restrict_with_error
+  has_many :people, through: :affiliations
   has_many :users, through: :people
+  has_many :comments, -> { newest_first }, as: :commentable, dependent: :destroy
   has_many :reports
   has_many :workshop_logs
 
@@ -35,11 +36,17 @@ class Organization < ApplicationRecord
   validates :organization_status_id, presence: true
   validates :email, format: { with: URI::MailTo::EMAIL_REGEXP, message: "must be a valid email address" }, allow_blank: true
   validates :website_url, format: { with: /\Ahttps?:\/\/\S+\z/i, message: "must start with http:// or https://" }, allow_blank: true
+  validate :affiliation_dates_locked, if: -> { affiliations.any? && !Current.user&.super_user? }
 
   # Nested attributes
-  accepts_nested_attributes_for :addresses, allow_destroy: true, reject_if: :all_blank
-  accepts_nested_attributes_for :sectorable_items, allow_destroy: true, reject_if: :all_blank
-  accepts_nested_attributes_for :organization_people, allow_destroy: true, reject_if: :all_blank
+  accepts_nested_attributes_for :addresses, allow_destroy: true,
+                                reject_if: proc { |attrs| attrs.slice("locality", "city", "state", "street_address", "zip_code").values.all?(&:blank?) }
+  accepts_nested_attributes_for :sectorable_items, allow_destroy: true,
+                                reject_if: proc { |attrs| attrs["sector_id"].blank? }
+  after_save :remove_duplicate_sectorable_items
+  accepts_nested_attributes_for :affiliations, allow_destroy: true,
+                                reject_if: proc { |attrs| attrs["person_id"].blank? }
+  accepts_nested_attributes_for :comments, reject_if: proc { |attrs| attrs["body"].blank? }
 
   # SearchCop
   include SearchCop
@@ -49,30 +56,39 @@ class Organization < ApplicationRecord
 
   # Scopes
   # See TagFilterable, Trendable, WindowsTypeFilterable
-  scope :active, ->(active = nil) { active ? where(inactive: !active) : where(inactive: false) }
+  scope :active, -> {
+    status_active = joins(:organization_status).where(organization_statuses: { name: "Active" })
+    affiliation_active = where(id: Affiliation.active.select(:organization_id))
+    status_active.or(affiliation_active)
+  }
   scope :address, ->(address) do
     return all if address.blank?
-    exact = address.to_s
-    wildcard = "%#{exact}%"
-    left_joins(:addresses).where(
-      <<~SQL,
-      addresses.street_address LIKE :wildcard OR
-      addresses.city LIKE :wildcard OR
-      addresses.state LIKE :wildcard OR
-      addresses.county LIKE :wildcard OR
-      addresses.country LIKE :wildcard OR
-      addresses.district LIKE :wildcard OR
-      addresses.locality LIKE :wildcard OR
-      addresses.zip_code LIKE :exact OR
-      CAST(addresses.la_city_council_district AS CHAR) = :exact OR
-      CAST(addresses.la_service_planning_area AS CHAR) = :exact OR
-      CAST(addresses.la_supervisorial_district AS CHAR) = :exact
-    SQL
-      wildcard: wildcard, exact: exact)
+    terms = address.to_s.strip.split(/[\s,]+/).reject(&:blank?)
+    return all if terms.empty?
+
+    scope = joins(:addresses)
+    terms.each do |term|
+      wildcard = "%#{sanitize_sql_like(term)}%"
+      scope = scope.where(<<~SQL.squish, wildcard: wildcard)
+        addresses.street_address LIKE :wildcard OR
+        addresses.city LIKE :wildcard OR
+        addresses.state LIKE :wildcard OR
+        addresses.county LIKE :wildcard OR
+        addresses.country LIKE :wildcard OR
+        addresses.district LIKE :wildcard OR
+        addresses.locality LIKE :wildcard OR
+        addresses.phone LIKE :wildcard OR
+        addresses.zip_code LIKE :wildcard OR
+        CAST(addresses.la_city_council_district AS CHAR) LIKE :wildcard OR
+        CAST(addresses.la_service_planning_area AS CHAR) LIKE :wildcard OR
+        CAST(addresses.la_supervisorial_district AS CHAR) LIKE :wildcard
+      SQL
+    end
+    scope.distinct
   end
   scope :organization_ids, ->(organization_ids) { where(id: organization_ids.to_s.split("-").map(&:to_i)) }
   scope :project_ids, ->(project_ids) { where(id: project_ids.to_s.split("-").map(&:to_i)) }
-  scope :published, ->(published = nil) { published ? active(published) : active }
+  scope :published, -> { active }
 
   def self.search_by_params(params)
     organizations = is_a?(ActiveRecord::Relation) ? self : all
@@ -82,13 +98,14 @@ class Organization < ApplicationRecord
     organizations = organizations.address(params[:address]) if params[:address].present?
     organizations = organizations.windows_type_name(params[:windows_type_name]) if params[:windows_type_name].present?
     organizations = organizations.organization_ids(params[:organization_ids]) if params[:organization_ids].present?
+    organizations = organizations.where(organization_status_id: params[:organization_status_id]) if params[:organization_status_id].present?
     organizations
   end
 
   def affiliated_workshop_logs
     direct = WorkshopLog.where(organization_id: id)
     legacy = WorkshopLog.where(organization_id: nil)
-                        .where(user_id: users.select(:id))
+                        .where(created_by_id: users.select(:id))
     direct.or(legacy).distinct
   end
 
@@ -98,8 +115,17 @@ class Organization < ApplicationRecord
     leader.user == user
   end
 
+  def state
+    addresses.active.first&.state
+  end
+
   def city_state
-    "#{organization_locality}, #{addresses.active.first&.state}"
+    first_active = if addresses.loaded?
+      addresses.find { |a| !a.inactive? }
+    else
+      addresses.active.first
+    end
+    "#{organization_locality}, #{first_active&.state}"
   end
 
   def type_name
@@ -107,24 +133,47 @@ class Organization < ApplicationRecord
   end
 
   def organization_description
-    "#{name}, #{organization_locality}"
+    locality = organization_locality
+    locality.present? ? "#{name}, #{locality}" : name
   end
 
   def organization_locality
-    addresses.active.first&.locality
+    if addresses.loaded?
+      addresses.select { |a| !a.inactive? }.first&.locality
+    else
+      addresses.active.first&.locality
+    end
   end
 
   def published? # needed for my_bookmarks
-    !inactive
+    return true if organization_status&.name == "Active"
+    affiliations.active.exists?
   end
 
   def sector_list
     sectors.pluck(:name)
   end
 
+  remote_searchable_by :name
+
   private
 
+  def affiliation_dates_locked
+    if start_date_changed?
+      errors.add(:start_date, "is managed automatically by affiliations")
+    end
+    if end_date_changed?
+      errors.add(:end_date, "is managed automatically by affiliations")
+    end
+  end
+
   def leader
-    organization_people.find_by(position: 2)
+    affiliations.find_by(position: 2)
+  end
+
+  def remove_duplicate_sectorable_items
+    sectorable_items
+      .group_by(&:sector_id)
+      .each_value { |dupes| dupes.drop(1).each(&:destroy) }
   end
 end

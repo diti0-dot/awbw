@@ -1,6 +1,9 @@
 class WorkshopSearchService
   include ActionPolicy::Behaviour
+  include PunctuationStrippable
   authorize :user
+
+  TITLE_SORT_SQL = "LOWER(TRIM(#{Workshop.strip_punctuation_sql_spaced('workshops.title')})) ASC".freeze
 
   attr_reader :params, :user, :admin
   attr_accessor :workshops, :sort
@@ -26,7 +29,7 @@ class WorkshopSearchService
 
   # Compute the effective sort
   def default_sort
-    params[:sort].presence || "created"
+    params[:sort].presence || "title"
     # return params[:sort] if params[:sort].present?
     # return 'keywords' if params[:query].present? # only when returning weighted results from # search_by_query
     # 'title'
@@ -60,20 +63,10 @@ class WorkshopSearchService
   end
 
   def filter_by_published_status
-    if admin
-      pub   = params.key?(:published)   ? ActiveModel::Type::Boolean.new.cast(params[:published])   : nil
-      unpub = params.key?(:unpublished) ? ActiveModel::Type::Boolean.new.cast(params[:unpublished]) : nil
-
-      case [ pub, unpub ]
-      when [ true, nil ], [ true, false ]
-        @workshops = @workshops.published(true)     # ONLY published
-      when [ nil, true ], [ false, true ]
-        @workshops = @workshops.published(false)    # ONLY unpublished
-      when [ false, false ]
-        @workshops = @workshops.none                # NONE
-      else # incl [ nil, nil ] && [ true, true ]
-        @workshops                                  # ALL
-      end
+    if Workshop.visibility_params_present?(params)
+      @workshops = Workshop.apply_visibility_filters(@workshops, params)
+    elsif admin
+      @workshops # ALL (no checkboxes checked, admin sees everything)
     elsif user
       @workshops = @workshops.published
     else
@@ -127,22 +120,34 @@ class WorkshopSearchService
 
   def filter_by_title
     return unless params[:title].present?
-    @workshops = @workshops.search("title:#{params[:title]}")
+    @workshops = @workshops.title(params[:title])
   end
 
   def filter_by_query
     return unless params[:query].present?
 
-    results = @workshops.search(params[:query]) # Use the SearchCop search scope directly on the relation
+    spaced = ActiveRecord::Base.sanitize_sql_like(
+      self.class.strip_punctuation_spaced(params[:query]).strip
+    )
+    spaceless = ActiveRecord::Base.sanitize_sql_like(
+      self.class.strip_punctuation_spaceless(params[:query]).strip
+    )
+    return if spaced.blank?
 
-    # If SearchCop returned an Array (e.g., because of scoring), convert back to Relation
-    if results.is_a?(Array)
-      ordered_ids = results.map(&:id)
-      @workshops = Workshop.where(id: ordered_ids)
-                           .order(Arel.sql("FIELD(id, #{ordered_ids.join(',')})"))
-    else
-      @workshops = results
-    end
+    # Match against spaced variant (punctuation → space) and spaceless variant (punctuation + spaces removed)
+    fields = %w[workshops.title workshops.full_name action_text_rich_texts.plain_text_body]
+    conditions = fields.flat_map do |field|
+      [
+        "#{self.class.strip_punctuation_sql_spaced(field)} LIKE :spaced",
+        "#{self.class.strip_punctuation_sql_spaceless(field)} LIKE :spaceless"
+      ]
+    end.join(" OR ")
+
+    @workshops = @workshops
+      .joins("LEFT JOIN action_text_rich_texts ON action_text_rich_texts.record_id = workshops.id " \
+             "AND action_text_rich_texts.record_type = 'Workshop'")
+      .where(conditions, spaced: "%#{spaced}%", spaceless: "%#{spaceless}%")
+      .distinct
   end
 
   # --- Search methods ---
@@ -151,13 +156,17 @@ class WorkshopSearchService
     return workshops if author_name.blank?
 
     sanitized = author_name.strip.gsub(/\s+/, "")
-    workshops.left_outer_joins(:user)
+    workshops.left_outer_joins(user: :person)
              .where(
                "LOWER(REPLACE(workshops.full_name, ' ', '')) LIKE :name
                 OR LOWER(REPLACE(CONCAT(users.first_name, users.last_name), ' ', '')) LIKE :name
                 OR LOWER(REPLACE(CONCAT(users.last_name, users.first_name), ' ', '')) LIKE :name
                 OR LOWER(REPLACE(users.first_name, ' ', '')) LIKE :name
-                OR LOWER(REPLACE(users.last_name, ' ', '')) LIKE :name",
+                OR LOWER(REPLACE(users.last_name, ' ', '')) LIKE :name
+                OR LOWER(REPLACE(CONCAT(people.first_name, people.last_name), ' ', '')) LIKE :name
+                OR LOWER(REPLACE(CONCAT(people.last_name, people.first_name), ' ', '')) LIKE :name
+                OR LOWER(REPLACE(people.first_name, ' ', '')) LIKE :name
+                OR LOWER(REPLACE(people.last_name, ' ', '')) LIKE :name",
                name: "%#{sanitized}%"
              )
   end
@@ -212,11 +221,9 @@ class WorkshopSearchService
     when "led"
       @workshops = @workshops.order(led_count: :desc, title: :asc)
     when "popularity"
-      @workshops = @workshops.order(
-        Arel.sql("COUNT(bookmarks.id) DESC, workshops.title ASC")
-      )
+      @workshops = @workshops.order(bookmarks_count: :desc, title: :asc)
     when "title"
-      @workshops = @workshops.order(title: :asc)
+      @workshops = @workshops.order(Arel.sql(TITLE_SORT_SQL))
     when "keywords"
       # already ordered
     else

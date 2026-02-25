@@ -21,9 +21,22 @@
       </div>
     </div>
 
+    <!-- Access -->
+    <div>
+      <%= label_tag :access, "Access", class: "block text-sm font-medium text-gray-700 mb-1" %>
+      <%= select_tag :access,
+                     options_for_select([["All", ""],
+                                         ["Has access", "true"],
+                                         ["No access", "false"]],
+                                        params[:access]),
+                     class: "w-full rounded-lg border border-gray-300 px-3 py-2 text-gray-800 shadow-sm
+                           focus:border-blue-500 focus:ring focus:ring-blue-200 focus:outline-none pe-10",
+                     onchange: "this.form.submit()" %>
+    </div>
+
     <!-- Admin -->
     <div>
-      <%= label_tag :super_user, "Admin", class: "block text-sm font-medium text-gray-700 mb-1" %>
+      <%= label_tag :super_user, "Permission level", class: "block text-sm font-medium text-gray-700 mb-1" %>
       <%= select_tag :super_user,
                      options_for_select([["All users", ""],
                                          ["Admins", true],
@@ -34,23 +47,11 @@
                      onchange: "this.form.submit()" %>
     </div>
 
-    <!-- Inactive -->
-    <div>
-      <%= label_tag :inactive, "Inactive", class: "block text-sm font-medium text-gray-700 mb-1" %>
-      <%= select_tag :inactive,
-                     options_for_select([["All users", ""],
-                                         ["Inactive users", true],
-                                         ["Active users", false]],
-                                        params[:inactive]),
-                     class: "w-full rounded-lg border border-gray-300 px-3 py-2 text-gray-800 shadow-sm
-                           focus:border-blue-500 focus:ring focus:ring-blue-200 focus:outline-none pe-10",
-                     onchange: "this.form.submit()" %>
-    </div>
-
     <!-- Clear filters -->
     <div class="flex sm:justify-end items-end">
       <%= link_to 'Clear filters', users_path,
-                  class: "btn btn-utility-outline" %>
+                  class: "btn btn-utility-outline",
+                  data: { action: "collection#clearAndSubmit" } %>
     </div>
   </div>
 <% end %>

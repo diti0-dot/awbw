@@ -1,10 +1,10 @@
 FactoryBot.define do
   factory :workshop_variation_idea do
-    name { "Workshop Variation Idea" }
-    body { "This is a variation idea description" }
+    sequence(:name) { |n| "Workshop Variation Idea #{n}" }
+    rhino_body { "<p>This is a variation idea description</p>" }
     youtube_url { "https://www.youtube.com/watch?v=example" }
     permission_given { true }
-    publish_preferences { "public" }
+    author_credit_preference { "full_name" }
     association :workshop
     association :organization
     association :windows_type

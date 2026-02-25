@@ -22,7 +22,7 @@
       <div class="admin-only bg-blue-100 m-3 p-3">
         <%= link_to "Promote to Workshop", new_workshop_path(workshop_idea_id: @workshop_idea.id),
                     class: "btn btn-secondary-outline",
-                    data: { confirm: "All edits must be saved before promoting. Are you sure you wish to promote?All edits must be saved before promoting." } %>
+                    data: { turbo_confirm: "All edits must be saved before promoting. Are you sure you wish to promote?" } %>
       </div>
     <% end %>
     <!-- Row 1 -->
@@ -41,7 +41,7 @@
       <div>
         <%= f.input :windows_type_id,
                     as: :select,
-                    label: "Workshop type",
+                    label: "Windows audience",
                     required: true,
                     collection: @windows_types, label_method: :short_name, value_method: :id,
                     selected: f.object.windows_type_id,
@@ -66,19 +66,33 @@
         <div class="admin-only bg-blue-100 flex gap-x-2 items-center p-3">
           <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
             <div>
-              <%= f.input :created_by_id,
-                          as: :select,
-                          label: "Author",
-                          collection: User.order(:last_name, :first_name),
-                          selected: f.object.created_by_id || current_user.id,
-                          input_html: { class: "block w-full rounded-md border-gray-300 shadow-sm
-                          focus:ring-blue-500 focus:border-blue-500 sm:text-sm" } %>
+              <div data-controller="searchable-select" data-searchable-select-mode-value="person">
+                <%= f.input :created_by_id,
+                            as: :select,
+                            label: "Author",
+                            collection: @users,
+                            label_method: :full_name_with_email,
+                            value_method: :id,
+                            selected: f.object.created_by_id || current_user.id,
+                            input_html: { class: "block w-full rounded-md border-gray-300 shadow-sm
+                            focus:ring-blue-500 focus:border-blue-500 sm:text-sm",
+                            data: { searchable_select_target: "select" } } %>
+              </div>
             </div>
             <div>
               <%= f.input :staff_notes, as: :text,
                           input_html: { rows: 2,
                                         class: "block w-full rounded-md border-gray-300 shadow-sm focus:ring-blue-500
                                           focus:border-blue-500 sm:text-sm" } %>
+            </div>
+            <div>
+              <%= f.input :author_credit_preference,
+                          as: :select,
+                          collection: AuthorCreditable::IDEA_FORM_OPTIONS,
+                          include_blank: "Select a preference",
+                          selected: f.object.author_credit_preference,
+                          label: "Author credit preference",
+                          hint: "Controls how the author's name is displayed" %>
             </div>
           </div>
         </div>
@@ -381,7 +395,7 @@
     </div>
 
 
-  <%= render "shared/form_image_fields", f: f, include_primary_asset: true %>
+  <%= render "shared/form_image_fields", f: f, include_primary_asset: false %>
     <div class="action-buttons mt-8 flex justify-center gap-3">
       <% if allowed_to?(:destroy?, f.object) %>
         <%= link_to "Delete", @workshop_idea, class: "btn btn-danger-outline",

@@ -2,15 +2,19 @@ class OrganizationPolicy < ApplicationPolicy
   # See https://actionpolicy.evilmartians.io/#/writing_policies
   #
   def index?
-    authenticated?
+    admin?
   end
 
   def show?
-    admin? || (authenticated? && record.published?)
+    admin?
   end
 
   def show_workshop_logs?
     admin? || member?
+  end
+
+  def populations_served?
+    show?
   end
 
 
@@ -26,8 +30,8 @@ class OrganizationPolicy < ApplicationPolicy
     next relation.active if admin?
     next relation.none unless user&.person_id
 
-    relation.joins(:organization_people)
-            .where(organization_people: { person_id: user.person_id })
+    relation.joins(:affiliations)
+            .where(affiliations: { person_id: user.person_id })
   end
 
   private
@@ -35,7 +39,7 @@ class OrganizationPolicy < ApplicationPolicy
   def member?
     @member ||= begin
       return false unless user&.person_id
-      record.organization_people.exists?(person_id: user.person_id)
+      record.affiliations.exists?(person_id: user.person_id)
     end
   end
 end

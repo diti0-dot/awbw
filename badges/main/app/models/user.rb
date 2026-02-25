@@ -1,33 +1,45 @@
 class User < ApplicationRecord
   # Include default devise modules. Others available are:
-  # :confirmable, :lockable, :timeoutable and :omniauthable
+  # :confirmable, :timeoutable and :omniauthable
   devise :database_authenticatable, :recoverable, :confirmable,
-    :rememberable, :trackable, :validatable
+    :rememberable, :trackable, :validatable, :lockable
+
+  attr_accessor :locked_will_change
+
+  before_save :sync_locked_at_from_locked
 
   after_update :track_welcome_instructions
   after_update :track_welcome_completion, if: :welcome_token_cleared?
   after_update :track_login_event
   after_update :track_email_change
+  after_update :sync_email_to_person
+  after_update :track_lock_change
+  after_update :track_admin_change
+  after_update :track_name_change
+  after_update :track_inactive_change
+  after_update :track_password_reset_sent
 
   before_destroy :track_account_deleted
   before_destroy :reassign_reports_and_logs_to_orphaned_user
 
   # Associations
   belongs_to :person, optional: true
+  belongs_to :created_by, class_name: "User", optional: true
+  belongs_to :updated_by, class_name: "User", optional: true
   has_many :bookmarks, dependent: :destroy
-  has_many :event_registrations, foreign_key: :registrant_id, dependent: :destroy
+  has_many :comments, -> { newest_first }, as: :commentable, dependent: :destroy
+  has_many :event_registrations, through: :person
   has_many :notifications, as: :noticeable
 
-  has_many :reports
-  has_many :resources
+  has_many :reports, foreign_key: :created_by_id, inverse_of: :created_by
+  has_many :resources, foreign_key: :created_by_id, inverse_of: :created_by
   has_many :user_forms, dependent: :destroy
-  has_many :workshops
-  has_many :workshop_logs
+  has_many :workshops, foreign_key: :created_by_id, inverse_of: :created_by
+  has_many :workshop_logs, foreign_key: :created_by_id, inverse_of: :created_by
 
   # created_by associations
   has_many :stories_as_creator, foreign_key: :created_by_id, class_name: "Story"
   has_many :story_ideas_as_creator, foreign_key: :created_by_id, class_name: "StoryIdea"
-  has_many :workshops_as_creator, foreign_key: :created_by_id, class_name: "Workshop"
   has_many :workshop_ideas_as_creator, foreign_key: :created_by_id, class_name: "WorkshopIdea"
   has_many :workshop_variations_as_creator, foreign_key: :created_by_id, class_name: "WorkshopVariation"
   has_many :workshop_variation_ideas_creator, foreign_key: :created_by_id, class_name: "WorkshopVariationIdea"
@@ -42,12 +54,12 @@ class User < ApplicationRecord
   has_many :windows_types, through: :organizations
 
   has_many :user_form_form_fields, through: :user_forms, dependent: :destroy
-  # Images
-  has_one_attached :avatar
-
   # Nested attributes
   accepts_nested_attributes_for :user_forms
+  accepts_nested_attributes_for :comments, reject_if: proc { |attrs| attrs["body"].blank? }
 
+
+  before_validation :strip_whitespace
 
   # Validations
   validates :email, presence: true, uniqueness: { case_sensitive: false }
@@ -56,21 +68,47 @@ class User < ApplicationRecord
   validates_associated :person, if: -> { person.present? }
 
 
+  include RemoteSearchable
+
   # Search Cop
   include SearchCop
   search_scope :search do
     attributes [ :email, :first_name, :last_name, :phone ]
+    attributes person_email: "person.email"
+    attributes person_email_2: "person.email_2"
     attributes user: "organizations.name"
   end
 
-  scope :active, -> { where(inactive: false) }
+  scope :has_access, -> { where(locked_at: nil, inactive: false).where.not(confirmed_at: nil) }
 
   def self.search_by_params(params)
     results = is_a?(ActiveRecord::Relation) ? self : all
     results = results.search(params[:search]) if params[:search].present?
     results = results.where(super_user: params[:super_user]) if params[:super_user].present?
-    results = results.where(inactive: params[:inactive]) if params[:inactive].present?
+    if params[:access] == "true"
+      results = results.has_access
+    elsif params[:access] == "false"
+      results = results.where("inactive = ? OR locked_at IS NOT NULL OR confirmed_at IS NULL", true)
+    end
     results
+  end
+
+  remote_searchable_by :email
+
+  def self.remote_search(query)
+    return none if query.blank?
+
+    pattern = "%#{query}%"
+    has_access
+      .left_joins(:person)
+      .where(
+        "users.email LIKE :pattern OR people.first_name LIKE :pattern OR people.last_name LIKE :pattern",
+        pattern: pattern
+      )
+  end
+
+  def remote_search_label
+    { id: id, label: full_name_with_email }
   end
 
   def active_for_authentication?
@@ -78,7 +116,11 @@ class User < ApplicationRecord
   end
 
   def bookmark_for(record)
-    bookmarks.find_by(bookmarkable: record)
+    if bookmarks.loaded?
+      bookmarks.detect { |b| b.bookmarkable_type == record.class.name && b.bookmarkable_id == record.id && !b.destroyed? }
+    else
+      bookmarks.find_by(bookmarkable: record)
+    end
   end
 
   def full_name
@@ -93,31 +135,17 @@ class User < ApplicationRecord
     end
   end
 
-  def devise_email_name
-    person&.first_name.presence || first_name.presence || email
+  def full_name_with_email
+    person ? "#{person.full_name} (#{email})" : email
+  end
+
+  def first_name_or_email
+    person&.first_name.presence || email
   end
 
   def submitted_monthly_report(submitted_date = Date.today, windows_type, organization_id)
     Report.where(organization_id: organization_id, type: "MonthlyReport", date: submitted_date,
       windows_type: windows_type).last
-  end
-
-  def recent_activity(activity_limit = 10)
-    recent = []
-
-    # recent.concat(events.order(updated_at: :desc).limit(activity_limit))
-    recent.concat(bookmarks.order(updated_at: :desc).limit(activity_limit))
-    recent.concat(workshops.order(updated_at: :desc).limit(activity_limit))
-    recent.concat(workshop_logs.order(updated_at: :desc).limit(activity_limit))
-    recent.concat(workshop_variations_as_creator.order(updated_at: :desc).limit(activity_limit))
-    recent.concat(stories_as_creator.order(updated_at: :desc).limit(activity_limit))
-    # recent.concat(quotes.order(updated_at: :desc).limit(activity_limit))
-    recent.concat(resources.order(updated_at: :desc).limit(activity_limit))
-    recent.concat(reports.where(owner_type: "MonthlyReport").order(updated_at: :desc).limit(activity_limit))
-    recent.concat(reports.where(owner_id: 7).order(updated_at: :desc).limit(activity_limit)) # TODO: remove hard-coded
-
-    # Sort by the most recent timestamp (updated_at preferred, fallback to created_at)
-    recent.sort_by { |item| item.try(:updated_at) || item.created_at }.reverse.first(activity_limit * 8)
   end
 
   def organization_monthly_workshop_logs(date, *windows_type)
@@ -145,27 +173,13 @@ class User < ApplicationRecord
   end
 
   def name
-    return email if !first_name || first_name.empty?
-    "#{first_name} #{last_name}"
+    person ? person.name : email
   end
 
-  def agency_name
-    agency ? agency.name : "No agency."
+  def primary_asset # method needed for idea_submitted_fyi mailer
   end
 
-  def has_bookmarkable?(bookmarkable, type: nil)
-    bookmarkable_ids(bookmarkable_type: type || bookmarkable.object.class.name).include?(bookmarkable.id)
-  end
-
-  def bookmarkable_ids(bookmarkable_type:)
-    public_send("bookmarked_#{bookmarkable_type.downcase.pluralize}")
-      .pluck(:id)
-  end
-
-  def primary_asset # method needed for idea_submission_fyi mailer
-  end
-
-  def gallery_assets # method needed for idea_submission_fyi mailer
+  def gallery_assets # method needed for idea_submitted_fyi mailer
     []
   end
 
@@ -193,11 +207,29 @@ class User < ApplicationRecord
   end
 
   def track_auth_event(name, properties = {})
-    payload = { name: name, properties: properties.merge(user_id: id) }
+    payload = { name: name, properties: properties.merge(
+      record_id: id, record_type: "User", updated_by_id: updated_by_id,
+      resource_type: "User", resource_id: id, resource_title: "#{self.name} (#{email})"
+    ) }
     Analytics::LifecycleBuffer.push(payload)
   end
 
+  def locked
+    locked_at.present?
+  end
+
+  def locked=(value)
+    @locked_will_change = true
+    @locked_value = ActiveModel::Type::Boolean.new.cast(value)
+  end
+
   private
+
+  def strip_whitespace
+    self.first_name = first_name&.strip
+    self.last_name = last_name&.strip
+    self.email = email&.strip
+  end
 
   def time_zone_must_be_valid
     return if ActiveSupport::TimeZone[time_zone]
@@ -217,10 +249,10 @@ class User < ApplicationRecord
     return unless orphaned_user
 
     # Reassign reports
-    reports.update_all(user_id: orphaned_user.id)
+    reports.update_all(created_by_id: orphaned_user.id)
 
     # Reassign workshop_logs
-    workshop_logs.update_all(user_id: orphaned_user.id)
+    workshop_logs.update_all(created_by_id: orphaned_user.id)
   end
 
   def after_confirmation
@@ -248,8 +280,33 @@ class User < ApplicationRecord
   end
 
   def track_email_change
-    return unless saved_change_to_email?
-    track_auth_event("auth.email_changed")
+    if saved_change_to_email?
+      from, to = saved_change_to_email
+      track_auth_event("auth.email_changed", { changes: { email: { before: from, after: to } } })
+    elsif saved_change_to_unconfirmed_email? && unconfirmed_email.present?
+      track_auth_event("auth.email_update_requested", { changes: { email: { before: email, after: unconfirmed_email } } })
+    end
+  end
+
+  def track_lock_change
+    return unless saved_change_to_locked_at?
+
+    if locked_at.present?
+      track_auth_event("auth.account_locked", { locked_at: locked_at })
+    else
+      track_auth_event("auth.account_unlocked")
+    end
+  end
+
+  def track_admin_change
+    return unless saved_change_to_super_user?
+
+    from, to = saved_change_to_super_user
+    if super_user?
+      track_auth_event("auth.admin_granted", { changes: { admin: { before: "revoked", after: "granted" } } })
+    else
+      track_auth_event("auth.admin_revoked", { changes: { admin: { before: "granted", after: "revoked" } } })
+    end
   end
 
   def track_login_event
@@ -267,5 +324,53 @@ class User < ApplicationRecord
 
   def track_welcome_completion
     track_auth_event("auth.account_setup_completed")
+  end
+
+  def track_name_change
+    return unless saved_change_to_first_name? || saved_change_to_last_name?
+    props = {}
+    if saved_change_to_first_name?
+      from, to = saved_change_to_first_name
+      props[:first_name_from] = from
+      props[:first_name_to] = to
+    end
+    if saved_change_to_last_name?
+      from, to = saved_change_to_last_name
+      props[:last_name_from] = from
+      props[:last_name_to] = to
+    end
+    track_auth_event("auth.name_changed", props)
+  end
+
+  def track_inactive_change
+    return unless saved_change_to_inactive?
+
+    if inactive?
+      track_auth_event("auth.account_deactivated")
+    else
+      track_auth_event("auth.account_reactivated")
+    end
+  end
+
+  def track_password_reset_sent
+    return unless saved_change_to_reset_password_sent_at? && reset_password_sent_at.present?
+    track_auth_event("auth.password_reset_sent", { sent_at: reset_password_sent_at })
+  end
+
+  def sync_email_to_person
+    return unless saved_change_to_email? && person.present?
+
+    person.update(email: email)
+  end
+
+  def sync_locked_at_from_locked
+    return unless @locked_will_change
+
+    if @locked_value
+      self.locked_at = Time.current unless locked_at.present?
+    else
+      self.locked_at = nil
+      self.failed_attempts = 0
+    end
   end
 end

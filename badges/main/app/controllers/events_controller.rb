@@ -1,7 +1,8 @@
 class EventsController < ApplicationController
-  include AhoyTracking
+  include AhoyTracking, TagAssignable
   skip_before_action :authenticate_user!, only: [ :index, :show ]
-  before_action :set_event, only: %i[ show edit update destroy ]
+  skip_before_action :verify_authenticity_token, only: [ :preview ]
+  before_action :set_event, only: %i[ show edit update destroy preview manage copy_registration_form ]
 
   def index
     authorize!
@@ -26,6 +27,35 @@ class EventsController < ApplicationController
     set_form_variables
   end
 
+  def preview
+    authorize! @event
+    @event.assign_attributes(event_params)
+    @event = @event.decorate
+    @preview = true
+    render :show
+  end
+
+  def manage
+    authorize! @event, to: :manage?
+    @event = @event.decorate
+    scope = @event.event_registrations
+      .includes(:payments, registrant: [ { affiliations: :organization }, :contact_methods ])
+      .joins(:registrant)
+    scope = scope.keyword(params[:keyword]) if params[:keyword].present?
+    scope = scope.attendance_status(params[:attendance_status]) if params[:attendance_status].present?
+    @event_registrations = scope.order(Arel.sql("people.first_name, people.last_name"))
+
+    respond_to do |format|
+      format.html
+      format.csv do
+        send_data event_registrations_csv_string,
+          filename: "event-#{@event.id}-registrations-#{Date.current.iso8601}.csv",
+          type: "text/csv",
+          disposition: "attachment"
+      end
+    end
+  end
+
   def create
     authorize!
     @event = Event.new(event_params)
@@ -48,7 +78,7 @@ class EventsController < ApplicationController
 
     respond_to do |format|
       if success
-        format.html { redirect_to events_path, notice: "Event was successfully created." }
+        format.html { redirect_to @event, notice: "Event was successfully created." }
         format.json { render :show, status: :created, location: @event }
       else
         set_form_variables
@@ -74,7 +104,7 @@ class EventsController < ApplicationController
 
     respond_to do |format|
       if success
-        format.html { redirect_to events_path, notice: "Event was successfully updated." }
+        format.html { redirect_to @event, notice: "Event was successfully updated." }
         format.json { render :show, status: :ok, location: @event }
       else
         set_form_variables
@@ -94,7 +124,52 @@ class EventsController < ApplicationController
     end
   end
 
+  def copy_registration_form
+    authorize! @event, to: :manage?
+
+    source_event = Event.find(params[:source_event_id])
+    source_form = source_event.forms.find_by(name: EventRegistrationFormBuilder::FORM_NAME)
+
+    if source_form
+      EventRegistrationFormBuilder.copy!(from_form: source_form, to_event: @event)
+      redirect_to edit_event_path(@event), notice: "Registration form copied successfully."
+    else
+      redirect_to edit_event_path(@event), alert: "Source event has no registration form."
+    end
+  end
+
   private
+
+  def event_registrations_csv_string
+    require "csv"
+    cost_required = @event.cost_cents.to_i > 0
+    headers = [ "First name", "Last name", "Email", "Phone", "Organization", "Payment status", "Payment total" ]
+    CSV.generate(headers: headers, write_headers: true) do |csv_out|
+      @event_registrations.each do |registration|
+        csv_out << event_registration_csv_row(registration, cost_required)
+      end
+    end
+  end
+
+  def event_registration_csv_row(registration, cost_required)
+    person = registration.registrant
+    orgs = person.affiliations
+      .select { |a| !a.inactive? && (a.end_date.nil? || a.end_date >= Date.current) }
+      .map(&:organization).compact.uniq
+    org_names = orgs.map(&:name).join("; ")
+    total_cents = registration.payments.successful.sum(:amount_cents)
+    payment_total = total_cents.positive? ? format("%.2f", total_cents / 100.0) : ""
+    payment_status = cost_required ? (registration.paid_in_full? ? "Paid in full" : "Not paid in full") : ""
+    [
+      person.first_name,
+      person.last_name,
+      person.preferred_email.presence || "",
+      person.phone_number.presence || "",
+      org_names.presence || "",
+      payment_status,
+      payment_total
+    ]
+  end
 
   def set_form_variables
     @event = @event.decorate
@@ -107,18 +182,9 @@ class EventsController < ApplicationController
         .published
         .order(:position, :name)
         .group_by(&:category_type)
-        .select { |type, _| type.nil? || type.published? }
+        .select { |type, _| type.nil? || (type.published? && !type.story_specific? && !type.profile_specific?) }
         .sort_by { |type, _| type&.name.to_s.downcase }
     @sectors = Sector.published.order(:name)
-  end
-
-  def assign_associations(event)
-    selected_category_ids = Array(params[:event][:category_ids]).reject(&:blank?).map(&:to_i)
-    event.categories = Category.where(id: selected_category_ids)
-
-    selected_sector_ids = Array(params[:event][:sector_ids]).reject(&:blank?).map(&:to_i)
-    event.sectors = Sector.where(id: selected_sector_ids)
-    event.save!
   end
 
   def set_event
@@ -130,8 +196,21 @@ class EventsController < ApplicationController
                                   :created_by_id,
                                   :location_id,
                                   :title,
+                                  :pre_title,
                                   :videoconference_url,
+                                  :rhino_header,
                                   :rhino_description,
+                                  :autoshow_cost,
+                                  :autoshow_date,
+                                  :autoshow_location,
+                                  :autoshow_registration,
+                                  :autoshow_time,
+                                  :autoshow_title,
+                                  :autoshow_videoconference_url,
+                                  :autoshow_pre_date_text,
+                                  :autoshow_registration_close,
+                                  :pre_title,
+                                  :pre_date_text,
                                   :featured,
                                   :start_date, :end_date,
                                   :registration_close_date,

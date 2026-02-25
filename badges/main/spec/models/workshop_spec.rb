@@ -8,7 +8,7 @@ RSpec.describe Workshop do
     # Need create for association tests to work correctly with callbacks/scopes
     subject { create(:workshop) } # Assumes functional factory
 
-    it { should belong_to(:user).optional }
+    it { should belong_to(:created_by).optional }
     it { should belong_to(:windows_type).optional }
 
     it { should have_many(:sectorable_items).dependent(:destroy).inverse_of(:sectorable) }
@@ -35,7 +35,7 @@ RSpec.describe Workshop do
 
   describe 'validations' do
     # Requires associations for create
-    subject { build(:workshop, user: create(:user), windows_type: create(:windows_type)) }
+    subject { build(:workshop, created_by: create(:user), windows_type: create(:windows_type)) }
 
     it { should validate_presence_of(:title) }
     it { should validate_length_of(:age_range).is_at_most(16) }
@@ -86,6 +86,36 @@ RSpec.describe Workshop do
       results = Workshop.search(random_string)
 
       expect(results).to contain_exactly(workshop1, workshop2, workshop3)
+    end
+  end
+
+  describe "#author_credit" do
+    let(:user) { create(:user, :with_person) }
+    let(:person) { user.person }
+    let(:workshop) { create(:workshop, created_by: user) }
+
+    it "returns the person's full name when preference is full_name" do
+      workshop.update!(author_credit_preference: "full_name")
+      expect(workshop.author_credit).to eq(person.full_name)
+    end
+
+    it "returns the person's first name when preference is first_name_only" do
+      workshop.update!(author_credit_preference: "first_name_only")
+      expect(workshop.author_credit).to eq(person.first_name)
+    end
+
+    it "returns Anonymous when preference is anonymous" do
+      workshop.update!(author_credit_preference: "anonymous")
+      expect(workshop.author_credit).to eq("Anonymous")
+    end
+
+    it "falls back to person's display name when preference is nil" do
+      expect(workshop.author_credit).to eq(person.name)
+    end
+
+    it "returns Anonymous when user has no person" do
+      workshop.update!(created_by: create(:user, person: nil))
+      expect(workshop.author_credit).to eq("Anonymous")
     end
   end
 

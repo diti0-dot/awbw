@@ -1,17 +1,17 @@
-<div class="min-h-screen py-8">
-  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-    <div class="max-w-5xl mx-auto bg-white border border-gray-200 rounded-xl shadow-lg hover:shadow-xl transition-shadow duration-200 p-6">
-      <div class="flex items-center justify-between mb-6">
-        <h1 class="text-2xl font-semibold text-gray-900">Edit Sector</h1>
-        <%= link_to "Taggings", taggings_path(sector_names_all: @sector.name),
-                            class: "btn btn-secondary-outline" %>
+<% content_for(:page_bg_class, "admin-only bg-blue-100") %>
+<div class="<%= DomainTheme.bg_class_for(:sectors) %> border border-gray-200 rounded-xl shadow p-6">
+      <div class="flex flex-wrap justify-end gap-2 mb-4">
+        <%= link_to "Home", root_path, class: "text-sm text-gray-500 hover:text-gray-700 px-2 py-1" %>
+        <%= link_to "Sectors", sectors_path, class: "text-sm text-gray-500 hover:text-gray-700 px-2 py-1" %>
+        <%= link_to "Taggings", taggings_path(sector_names_all: @sector.name), class: "text-sm text-gray-500 hover:text-gray-700 px-2 py-1" %>
+        <%= link_to "View", sector_path(@sector), class: "text-sm text-gray-500 hover:text-gray-700 px-2 py-1" %>
       </div>
+      <h1 class="text-2xl font-semibold text-gray-900 mb-6">Edit sector</h1>
 
       <div class="space-y-6">
         <div class="mt-4">
           <%= render "form", sector: @sector %>
+          <%= render "shared/audit_info", resource: @sector %>
         </div>
       </div>
-    </div>
-  </div>
 </div>

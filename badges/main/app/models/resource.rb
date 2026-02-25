@@ -14,7 +14,7 @@ class Resource < ApplicationRecord
 
   has_rich_text :rhino_body
 
-  belongs_to :user
+  belongs_to :created_by, class_name: "User"
   belongs_to :workshop, optional: true
   belongs_to :windows_type, optional: true
   has_one :form, as: :owner
@@ -104,7 +104,11 @@ class Resource < ApplicationRecord
     resources = resources.windows_type_name(params[:windows_type_name]) if params[:windows_type_name].present?
     resources = resources.title(params[:title]) if params[:title].present?
     resources = resources.kinds(params[:kinds]) if params[:kinds].present?
-    resources = resources.published(params[:published]) if params[:published].present?
+    if visibility_params_present?(params)
+      resources = apply_visibility_filters(resources, params)
+    elsif params[:published].present?
+      resources = resources.published(params[:published])
+    end
     resources
   end
 

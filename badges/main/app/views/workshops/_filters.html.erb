@@ -1,7 +1,7 @@
 <!-- Filters Header -->
 
 <div>
-  <h3 class="text-sm font-semibold uppercase text-gray-500 tracking-wide">Keyword Search Filters</h3>
+  <h3 class="text-sm font-semibold uppercase text-gray-500 tracking-wide">Keyword search filters</h3>
 </div>
 
 <!-- Search Fields -->
@@ -24,6 +24,13 @@
 
 <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 overflow-visible p-4">
 
+  <%= render "dropdown_filter",
+             dom_id_prefix: "windows-types",
+             label_text: "Windows Audience",
+             items: @windows_types,
+             label_method: :short_name,
+             param_name: :windows_types %>
+
   <%= render "categories_fields", category_types: @category_types %>
 
   <%= render "dropdown_filter",
@@ -32,12 +39,9 @@
              items: @sectors.reject { |sector| sector.name == "Other" },
              param_name: :sectors %>
 
-  <%= render "dropdown_filter",
-             dom_id_prefix: "windows-types",
-             label_text: "Windows Type",
-             items: @windows_types,
-             label_method: :short_name,
-             param_name: :windows_types %>
-
-  <%= render "inactive_fields" if allowed_to?(:manage?, Workshop) %>
+  <%= render "shared/visibility_filter",
+             model_class: Workshop,
+             admin: allowed_to?(:manage?, Workshop),
+             authenticated: user_signed_in?,
+             show_label: false %>
 </div>

@@ -3,7 +3,7 @@ require 'rails_helper'
 RSpec.describe "workshops/edit", type: :view do
   let(:user) { create(:user) }
   let(:admin) { create(:user, :admin) }
-  let(:workshop) { create(:workshop, user: user) }
+  let(:workshop) { create(:workshop, created_by: user) }
 
   before(:each) do
     assign(:workshop, workshop)
@@ -24,7 +24,7 @@ RSpec.describe "workshops/edit", type: :view do
     end
 
     it "displays the edit form" do
-      expect(rendered).to match(/Edit Workshop/)
+      expect(rendered).to match(/Edit workshop/)
     end
 
     it "displays the View button" do

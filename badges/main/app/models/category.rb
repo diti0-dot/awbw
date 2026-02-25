@@ -10,6 +10,7 @@ class Category < ApplicationRecord
   # Scopes
   # See NameFilterable, Publishable
   scope :age_ranges, -> { joins(:category_type).where(category_types: { name: "AgeRange" }) }
+  scope :story_categories, -> { joins(:category_type).where(category_types: { name: "StoryCategory" }) }
   scope :ordered_by_position_and_name, -> { reorder(position: :asc, name: :asc) }
 
   # Validations
@@ -25,6 +26,7 @@ class Category < ApplicationRecord
   after_destroy :expire_categories_cache
 
   # Scopes
+  scope :has_taggings, -> { joins(:categorizable_items).distinct }
   scope :category_type_id, ->(category_type_id) {
     category_type_id.present? ? where(category_type_id: category_type_id) : all }
   scope :category_name, ->(category_name) {

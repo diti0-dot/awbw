@@ -1,3 +1,4 @@
+<% content_for(:page_bg_class, "admin-or-owner-or-member") %>
 <% children_total = @monthly_report.children_ongoing.to_i + @monthly_report.children_first_time.to_i %>
 <% teens_total    = @monthly_report.teens_ongoing.to_i + @monthly_report.teens_first_time.to_i %>
 <% adults_total   = @monthly_report.adults_ongoing.to_i + @monthly_report.adults_first_time.to_i %>
@@ -7,23 +8,21 @@
     <div class="bg-white border border-gray-200 rounded-xl shadow-lg hover:shadow-xl transition-shadow duration-200 p-6 space-y-6">
 
       <!-- Header -->
-      <div class="flex items-center justify-between">
-        <h1 class="text-2xl font-semibold text-gray-900">
-          <%= @monthly_report.title %>
-        </h1>
-
-        <div class="flex gap-2">
-          <%= link_to "Back to Monthly Reports", monthly_reports_path, class: "btn btn-secondary-outline" %>
-          <% if allowed_to?(:edit?, @monthly_report) %>
-            <%= link_to "Edit Log", edit_monthly_report_path(@monthly_report), class: "btn btn-primary-outline" %>
-          <% end %>
-        </div>
+      <div class="flex flex-wrap justify-end gap-2 mb-4">
+        <%= link_to "Home", root_path, class: "text-sm text-gray-500 hover:text-gray-700 px-2 py-1" %>
+        <%= link_to "Monthly Reports", monthly_reports_path, class: "text-sm text-gray-500 hover:text-gray-700 px-2 py-1" %>
+        <% if allowed_to?(:edit?, @monthly_report) %>
+          <%= link_to "Edit", edit_monthly_report_path(@monthly_report), class: "text-sm text-gray-500 hover:text-gray-700 px-2 py-1" %>
+        <% end %>
       </div>
+      <h1 class="text-2xl font-semibold text-gray-900">
+        <%= @monthly_report.title %>
+      </h1>
 
       <!-- Workshop Info -->
       <div class="grid grid-cols-1 md:grid-cols-2 gap-6 text-sm text-gray-800">
         <div>
-          <p><span class="font-semibold text-gray-700">Person:</span> <%= @monthly_report.user&.name || "—" %></p>
+          <p><span class="font-semibold text-gray-700">Person:</span> <%= @monthly_report.created_by&.name || "—" %></p>
           <p><span class="font-semibold text-gray-700">Organization:</span> <%= @monthly_report.organization&.name || "—" %></p>
         </div>
         <div>
@@ -36,10 +35,10 @@
       <!-- Assets -->
       <%= render "assets/display_gallery_media", resource: @monthly_report %>
 
-      <!-- Participant Counts -->
+      <!-- Participant counts -->
       <% if children_total > 0 || teens_total > 0 || adults_total > 0 %>
         <div>
-        <h2 class="text-lg font-semibold text-gray-800 mb-2">Participant Counts</h2>
+        <h2 class="text-lg font-semibold text-gray-800 mb-2">Participant counts</h2>
         <div class="overflow-x-auto">
           <table class="min-w-full border border-gray-300 rounded-lg overflow-hidden">
             <thead>

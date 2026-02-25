@@ -39,10 +39,15 @@ class Tag
       icon: "💬",
       path: -> { Rails.application.routes.url_helpers.quotes_path },
       klass: Quote
+    },
+    tutorials: {
+      icon: "🎬",
+      path: -> { Rails.application.routes.url_helpers.tutorials_path },
+      klass: Tutorial
     }
   }.freeze
 
-  def self.dashboard_card_for(key)
+  def self.home_card_for(key)
     meta = TAGGABLE_META.fetch(key)
 
     {

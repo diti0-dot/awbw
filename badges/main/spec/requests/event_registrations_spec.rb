@@ -2,14 +2,14 @@ require "rails_helper"
 require "csv"
 
 RSpec.describe "EventRegistrations", type: :request do
-  let(:regular_user) { create(:user, first_name: "John", last_name: "Doe", email: "john.doe@example.com") }
-  let(:admin)        { create(:user, super_user: true) }
-  let(:other_user)   { create(:user) }
+  let(:regular_user) { create(:user, :with_person, first_name: "John", last_name: "Doe", email: "john.doe@example.com") }
+  let(:admin)        { create(:user, :with_person, super_user: true) }
+  let(:other_user)   { create(:user, :with_person) }
 
   let(:event)        { create(:event, title: "Test Event") }
   let(:new_event)    { create(:event) }
 
-  let!(:existing_registration) { create(:event_registration, event: event, registrant: regular_user) }
+  let!(:existing_registration) { create(:event_registration, event: event, registrant: regular_user.person) }
 
   # ============================================================
   # ADMIN
@@ -37,27 +37,28 @@ RSpec.describe "EventRegistrations", type: :request do
 
         data_rows = rows.drop(1)
         expect(data_rows).not_to be_empty
+        person = regular_user.person
         expected_row = [
-          regular_user.first_name.to_s,
-          regular_user.last_name.to_s,
-          regular_user.email.to_s,
+          person.first_name.to_s,
+          person.last_name.to_s,
+          person.preferred_email.to_s,
           event.title.to_s
         ]
         expect(data_rows).to include(expected_row)
       end
 
-      xit "paginates results" do
-        registrations = create_list(:event_registration, 3)
+      it "paginates results" do
+        additional = create_list(:event_registration, 3)
 
         get event_registrations_path, params: { number_of_items_per_page: 1 }
 
         expect(response).to have_http_status(:success)
 
-        first  = ActionView::RecordIdentifier.dom_id(registrations.first)
-        second = ActionView::RecordIdentifier.dom_id(registrations.second)
+        first_dom_id = ActionView::RecordIdentifier.dom_id(existing_registration)
+        other_dom_id = ActionView::RecordIdentifier.dom_id(additional.first)
 
-        expect(response.body).to include(first)
-        expect(response.body).not_to include(second)
+        expect(response.body).to include(first_dom_id)
+        expect(response.body).not_to include(other_dom_id)
       end
     end
 
@@ -65,7 +66,7 @@ RSpec.describe "EventRegistrations", type: :request do
       it "can create registration" do
         expect {
           post event_registrations_path,
-               params: { event_registration: { event_id: event.id, registrant_id: admin.id } }
+               params: { event_registration: { event_id: event.id, registrant_id: admin.person.id } }
         }.to change(EventRegistration, :count).by(1)
       end
     end
@@ -75,7 +76,7 @@ RSpec.describe "EventRegistrations", type: :request do
         patch event_registration_path(existing_registration),
               params: { event_registration: { event_id: new_event.id } }
 
-        expect(response).to redirect_to(event_registrations_path)
+        expect(response).to redirect_to(event_registration_path(existing_registration))
         expect(existing_registration.reload.event_id).to eq(new_event.id)
       end
     end
@@ -108,13 +109,13 @@ RSpec.describe "EventRegistrations", type: :request do
 
     describe "POST /event_registrations" do
       context "when no registration exists yet" do
-        xit "creates a new EventRegistration" do # figure out why this is broken now
+        it "creates a new EventRegistration" do
           expect {
             post event_registrations_path,
                  params: {
                    event_registration: {
                      event_id: new_event.id,
-                     registrant_id: regular_user.id
+                     registrant_id: regular_user.person.id
                    }
                  }
           }.to change(EventRegistration, :count).by(1)
@@ -122,13 +123,13 @@ RSpec.describe "EventRegistrations", type: :request do
       end
 
       context "when a registration already exists" do
-        xit "does not create a duplicate registration" do # figure out why this is broken now
+        it "does not create a duplicate registration" do
           expect {
             post event_registrations_path,
                  params: {
                    event_registration: {
                      event_id: event.id,
-                     registrant_id: regular_user.id
+                     registrant_id: regular_user.person.id
                    }
                  }
           }.not_to change(EventRegistration, :count)
@@ -149,23 +150,22 @@ RSpec.describe "EventRegistrations", type: :request do
     end
 
     describe "PATCH /event_registrations/:id" do
-      context "with valid parameters" do
-        xit "updates the registration" do # TODO - figure out why this is broken now
-          patch event_registration_path(existing_registration),
-                params: { event_registration: { event_id: new_event.id } }
+      it "can update attendance status" do
+        patch event_registration_path(existing_registration),
+              params: { event_registration: { status: "cancelled" } }
 
-          expect(response).to redirect_to(event_path(existing_registration.event))
-          expect(flash[:notice]).to eq("Registration was successfully updated.")
-          expect(existing_registration.reload.event_id).to eq(new_event.id)
-        end
+        expect(existing_registration.reload.status).to eq("cancelled")
+        expect(response).to redirect_to(event_registration_path(existing_registration))
+        expect(flash[:notice]).to eq("Registration was successfully updated.")
       end
 
-      context "with invalid parameters" do
-        it "redirects to root" do
-          patch event_registration_path(existing_registration),
-                params: { event_registration: { event_id: nil } }
-          expect(response).to redirect_to(root_path)
-        end
+      it "cannot update event_id" do
+        original_event_id = existing_registration.event_id
+
+        patch event_registration_path(existing_registration),
+              params: { event_registration: { event_id: new_event.id } }
+
+        expect(existing_registration.reload.event_id).to eq(original_event_id)
       end
     end
 
@@ -211,7 +211,7 @@ RSpec.describe "EventRegistrations", type: :request do
       it "does not create a registration" do
         expect {
           post event_registrations_path,
-               params: { event_registration: { event_id: event.id, registrant_id: regular_user.id } }
+               params: { event_registration: { event_id: event.id, registrant_id: regular_user.person.id } }
         }.not_to change(EventRegistration, :count)
 
         expect(response).to redirect_to(root_path)
