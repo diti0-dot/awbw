@@ -47,7 +47,7 @@ class WorkshopLogsController < ApplicationController
 
     if success
       flash[:notice] = "Thanks for reporting on a workshop."
-      redirect_to root_path
+      redirect_to @workshop_log
     else
       flash.now[:alert] = "Failed to update workshop log."
       set_form_variables
@@ -63,13 +63,23 @@ class WorkshopLogsController < ApplicationController
     if @workshop_log.save
       NotificationServices::CreateNotification.call(
         noticeable: @workshop_log,
+        kind: :workshop_log_submitted,
+        recipient_role: :person,
+        recipient_email: @workshop_log.created_by.email,
+        notification_type: 0)
+      NotificationServices::CreateNotification.call(
+        noticeable: @workshop_log,
         kind: :workshop_log_submitted_fyi,
         recipient_role: :admin,
         recipient_email: ENV.fetch("REPLY_TO_EMAIL", "programs@awbw.org"),
         notification_type: 0)
 
       flash[:notice] = "Thank you for submitting a workshop log. To see all of your completed logs, please view your Profile."
-      redirect_to root_path
+      if allowed_to?(:show?, @workshop_log)
+        redirect_to @workshop_log
+      else
+        redirect_to root_path
+      end
     else
       flash.now[:alert] = "Failed to create workshop log."
       set_form_variables
@@ -82,6 +92,10 @@ class WorkshopLogsController < ApplicationController
     authorize! @workshop_log
     @workshop     = @workshop_log.workshop&.decorate
     @answers      = @workshop_log.report_form_field_answers
+    @updated_by   = Ahoy::Event.where(resource_type: "WorkshopLog", resource_id: @workshop_log.id)
+                                .where("name LIKE 'update.%'")
+                                .order(time: :desc)
+                                .first&.user
   end
 
   def edit

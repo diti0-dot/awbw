@@ -52,6 +52,52 @@ RSpec.describe Event, type: :model do
     end
   end
 
+  describe "#active_registration_for" do
+    let(:event) { create(:event) }
+    let(:person) { create(:person) }
+
+    it "returns nil when person is nil" do
+      expect(event.active_registration_for(nil)).to be_nil
+    end
+
+    it "returns nil when person has no registration" do
+      expect(event.active_registration_for(person)).to be_nil
+    end
+
+    it "returns the registration when person has an active registration" do
+      reg = create(:event_registration, event: event, registrant: person, status: "registered")
+      expect(event.active_registration_for(person)).to eq(reg)
+    end
+
+    it "returns nil when person has a cancelled registration" do
+      create(:event_registration, event: event, registrant: person, status: "cancelled")
+      expect(event.active_registration_for(person)).to be_nil
+    end
+  end
+
+  describe "#actively_registered?" do
+    let(:event) { create(:event) }
+    let(:person) { create(:person) }
+
+    it "returns false when person is nil" do
+      expect(event.actively_registered?(nil)).to be false
+    end
+
+    it "returns true when person has an active registration" do
+      create(:event_registration, event: event, registrant: person, status: "registered")
+      expect(event.actively_registered?(person)).to be true
+    end
+
+    it "returns false when person has a cancelled registration" do
+      create(:event_registration, event: event, registrant: person, status: "cancelled")
+      expect(event.actively_registered?(person)).to be false
+    end
+
+    it "returns false when person has no registration" do
+      expect(event.actively_registered?(person)).to be false
+    end
+  end
+
   describe "cost as virtual attribute of cost_cents" do
     let(:event) { create(:event, cost_cents: 5431) }
 
@@ -71,6 +117,32 @@ RSpec.describe Event, type: :model do
         event.cost = "10.99"
         expect(event.cost_cents).to eq(1099)
       end
+    end
+  end
+
+  describe "#build_public_registration_form" do
+    it "builds a registration form when public_registration_enabled is set on create" do
+      event = create(:event, public_registration_enabled: true)
+      expect(event.forms.exists?(name: EventRegistrationFormBuilder::FORM_NAME)).to be true
+    end
+
+    it "does not build a registration form when public_registration_enabled is false" do
+      event = create(:event, public_registration_enabled: false)
+      expect(event.forms.exists?(name: EventRegistrationFormBuilder::FORM_NAME)).to be false
+    end
+
+    it "builds a registration form when toggled to true on update" do
+      event = create(:event, public_registration_enabled: false)
+      event.update!(public_registration_enabled: true)
+      expect(event.forms.exists?(name: EventRegistrationFormBuilder::FORM_NAME)).to be true
+    end
+
+    it "does not duplicate the form if one already exists" do
+      event = create(:event, public_registration_enabled: true)
+      expect(event.forms.where(name: EventRegistrationFormBuilder::FORM_NAME).count).to eq(1)
+
+      event.update!(title: "Updated title")
+      expect(event.forms.where(name: EventRegistrationFormBuilder::FORM_NAME).count).to eq(1)
     end
   end
 

@@ -13,6 +13,8 @@ class Affiliation < ApplicationRecord
       .where("end_date IS NULL OR end_date >= ?", Date.current)
   }
 
+  scope :facilitators, -> { where("title LIKE ?", "%facilitator%") }
+
   before_validation :skip_if_duplicate
   before_save :set_inactive_from_dates
   after_save :deactivate_organization_if_no_active_people
@@ -21,6 +23,10 @@ class Affiliation < ApplicationRecord
   after_destroy :sync_organization_affiliation_dates
 
   # Methods
+  def facilitator?
+    title.to_s.downcase.include?("facilitator")
+  end
+
   def name
     "#{person.name}" if person
   end

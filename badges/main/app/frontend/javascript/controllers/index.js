@@ -1,5 +1,11 @@
 import { application } from "./application"
 
+import AffiliationDatesController from "./affiliation_dates_controller"
+application.register("affiliation-dates", AffiliationDatesController)
+
+import AnchorHighlightController from "./anchor_highlight_controller"
+application.register("anchor-highlight", AnchorHighlightController)
+
 import AssetPickerController from "./asset_picker_controller"
 application.register("asset-picker", AssetPickerController)
 

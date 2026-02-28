@@ -1,6 +1,6 @@
 module Events
   class PublicRegistrationsController < ApplicationController
-    skip_before_action :authenticate_user!, only: [ :new, :create ]
+    skip_before_action :authenticate_user!, only: [ :new, :create, :show ]
     before_action :set_event
     before_action :ensure_registerable, only: [ :new, :create ]
 
@@ -41,6 +41,8 @@ module Events
         return
       end
 
+      Current.source = "public_registration"
+
       result = EventRegistrationServices::PublicRegistration.call(
         event: @event,
         form: @form,
@@ -48,7 +50,6 @@ module Events
       )
 
       if result.success?
-        sign_in(result.event_registration.registrant.user) unless user_signed_in?
         redirect_to event_registration_path(result.event_registration),
                     notice: "You have been successfully registered!"
       else
@@ -68,20 +69,15 @@ module Events
         return
       end
 
-      target_user = if params[:user_id].present? && allowed_to?(:index?, EventRegistration)
-        User.find_by(id: params[:user_id])
-      else
-        current_user
-      end
 
-      @user_form = @form.user_forms.find_by(user: target_user)
-      unless @user_form
+      @person_form = @form.person_forms.find_by(person: params[:person_id])
+      unless @person_form
         redirect_to event_path(@event), alert: "No registration form submission found."
         return
       end
 
       @form_fields = @form.form_fields.where(status: :active).reorder(position: :asc)
-      @responses = @user_form.user_form_form_fields.index_by(&:form_field_id)
+      @responses = @person_form.person_form_form_fields.index_by(&:form_field_id)
       @event = @event.decorate
     end
 
@@ -103,7 +99,10 @@ module Events
 
     def validate_required_fields(form_params)
       errors = {}
-      @form.form_fields.where(status: :active).find_each do |field|
+      fields = @form.form_fields.where(status: :active)
+      fields_by_key = fields.select { |f| f.field_key.present? }.index_by(&:field_key)
+
+      fields.find_each do |field|
         next if field.group_header?
 
         value = form_params[field.id.to_s]
@@ -121,6 +120,17 @@ module Events
           errors[field.id] = "must be a valid email address"
         end
       end
+
+      confirm_field = fields_by_key["confirm_email"]
+      email_field = fields_by_key["primary_email"]
+      if confirm_field && email_field && errors[confirm_field.id].nil?
+        confirm_value = form_params[confirm_field.id.to_s].to_s.strip
+        email_value = form_params[email_field.id.to_s].to_s.strip
+        if confirm_value.present? && confirm_value != email_value
+          errors[confirm_field.id] = "must match email"
+        end
+      end
+
       errors
     end
   end

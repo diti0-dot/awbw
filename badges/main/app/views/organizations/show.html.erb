@@ -57,29 +57,10 @@
         <% org_show_aff_ended = @organization.affiliations.any? && !@organization.affiliations.active.exists? %>
         <% org_show_end_date = org_show_aff_ended ? @organization.affiliations.maximum(:end_date) : @organization.end_date %>
         <% if org_affiliated_since.present? %>
-          <div class="relative group cursor-help inline-block mt-1">
-            <p class="text-gray-500 text-sm">
-              <% if org_show_aff_ended || org_show_end_date.present? %>
-                <i class="fa-solid fa-circle-xmark text-red-400 mr-1"></i>
-              <% end %>
-              Affiliated since
-              <span class="font-medium"><%= org_affiliated_since.strftime("%b %Y") %><%= " – #{org_show_end_date.strftime('%b %Y')}" if org_show_end_date.present? %></span>
-              <i class="fa-solid fa-circle-info text-gray-400 text-xs"></i>
-            </p>
-            <div class="hidden group-hover:block absolute z-50 left-0 bottom-full mb-1 bg-blue-100 text-gray-700 text-xs rounded-lg shadow-lg ring-1 ring-blue-200 p-3 w-64 whitespace-normal">
-              <% if org_earliest_affiliation.present? %>
-                <p>Earliest start date from affiliation records.</p>
-                <% if @organization.start_date.present? && @organization.start_date.beginning_of_month != org_earliest_affiliation.beginning_of_month %>
-                  <p class="mt-2 text-gray-500"><i class="fa-solid fa-circle-info mr-1"></i>Organization start_date (<%= @organization.start_date.strftime('%b %Y') %>) differs from earliest affiliation.</p>
-                <% end %>
-              <% else %>
-                <p>Using organization start_date.<br><br><span class="text-amber-700 font-medium">⚠ No affiliations have a start date. Add a start date to an affiliation to use it here instead.</span></p>
-              <% end %>
-              <% if org_show_aff_ended %>
-                <p class="mt-2 text-amber-700 font-medium">⚠ All affiliations have ended.</p>
-              <% end %>
-            </div>
-          </div>
+          <p class="text-gray-500 text-sm mt-1">
+            Affiliated since
+            <span class="font-medium"><%= org_affiliated_since.strftime("%b %Y") %><%= " – #{org_show_end_date.strftime('%b %Y')}" if org_show_end_date.present? %></span>
+          </p>
         <% end %>
         <!-- Contact info -->
         <div class="mt-3 flex flex-wrap justify-center md:justify-start items-center gap-x-4 gap-y-2 text-sm">
@@ -139,44 +120,54 @@
             Affiliations
           </h2>
           <% active_affiliations = @organization.affiliations
-               .select { |affiliation| !affiliation.inactive? && (affiliation.end_date.nil? || affiliation.end_date >= Date.current) && affiliation.person.present? }
-               .sort_by { |affiliation| [affiliation.person.first_name.to_s.downcase, affiliation.person.last_name.to_s.downcase] } %>
-          <% if active_affiliations.any? %>
+               .select { |a| !a.inactive? && (a.end_date.nil? || a.end_date >= Date.current) && a.person.present? }
+               .sort_by { |a| [a.person.first_name.to_s.downcase, a.person.last_name.to_s.downcase] } %>
+          <% grouped = active_affiliations.group_by(&:person) %>
+          <% if grouped.any? %>
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
-              <% active_affiliations.each do |affiliation| %>
+              <% grouped.each do |person, person_affiliations| %>
                 <div data-paginated-fields-target="item">
-                  <%= person_profile_button(affiliation.person, subtitle: affiliation.title.presence) %>
+                  <% titles = person_affiliations.filter_map { |a| a.title.presence }.uniq %>
+                  <% titles = titles.sort_by { |t| [t.downcase.include?("facilitator") ? 0 : 1, t.downcase] } %>
+                  <%= person_profile_button(person, subtitle: titles.any? ? titles.join(", ") : nil) %>
                 </div>
               <% end %>
             </div>
             <div data-paginated-fields-target="nav" class="mt-3"></div>
           <% else %>
-            <p class="text-gray-500 italic">No affiliations listed.</p>
+            <p class="text-gray-500 italic">No active affiliations.</p>
           <% end %>
         </div>
-        <!-- Sectors -->
+                <!-- Sectors -->
         <% if @organization.profile_show_sectors? %>
           <div class="md:col-span-2 p-3">
             <h2 class="text-lg font-semibold text-gray-800 mb-3">Sectors</h2>
-            <% if @organization.sectorable_items.any? %>
+
+            <% sectors = @organization.all_sectors.sort_by { |s| s&.name.to_s } %>
+
+            <% if sectors.any? %>
               <div class="flex flex-wrap gap-2">
-                <% @organization.sectorable_items.sort_by { |si| si.sector&.name.to_s }.each do |si| %>
+                <% sectors.first(3).each do |sector| %>
                   <%= render "sectors/tagging_label",
-                             sector: si.sector,
-                             display_leader: true,
-                             is_leader: si.is_leader %>
+                             sector: sector,
+                             display_leader: true %>
+                <% end %>
+
+                <% if sectors.length > 3 %>
+                  <span class="text-gray-500 px-2">...</span>
                 <% end %>
               </div>
             <% else %>
               <p class="text-gray-500 italic">None selected.</p>
             <% end %>
+
             <div class="mt-4">
-              <%= link_to "Sector Distribution",
+              <%= link_to "Explore sector data",
                           populations_served_organization_path(@organization),
-                          class: "inline-block px-4 py-2 bg-gray-100 border border-gray-300 rounded shadow-sm text-gray-800 hover:bg-gray-200 transition" %>
+                          class: "text-sm text-gray-500 hover:text-gray-700 px-2 py-1" %>
             </div>
           </div>
-        <% end %>
+        <% end %>     
       </div>
     <hr class="my-8 border-gray-200">
     <!-- Workshops authored -->

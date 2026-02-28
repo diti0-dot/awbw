@@ -1,6 +1,10 @@
 class EventDecorator < ApplicationDecorator
   decorates_association :bookmarkable
 
+  def videoconference_domain
+    URI.parse(videoconference_url).host&.split(".")&.[](-2)&.capitalize rescue "video call"
+  end
+
   def display_image
     return primary_asset.file if primary_asset&.file&.attached?
 
@@ -22,8 +26,8 @@ class EventDecorator < ApplicationDecorator
   end
 
   def calendar_links
-    start_time   = object.start_date.strftime("%Y%m%dT%H%M%SZ")
-    end_time     = object.end_date.strftime("%Y%m%dT%H%M%SZ")
+    start_time   = object.start_date.utc.strftime("%Y%m%dT%H%M%SZ")
+    end_time     = object.end_date.utc.strftime("%Y%m%dT%H%M%SZ")
     title_encoded = ERB::Util.url_encode(object.title)
 
     has_url      = object.videoconference_url.present?
@@ -33,18 +37,20 @@ class EventDecorator < ApplicationDecorator
     # If both: URL in location field, physical location in description
     # If only URL: URL in location field
     # If only location: location in location field
+    event_description = object.rhino_description.to_plain_text
+
     if has_url && has_location
       cal_location = object.videoconference_url
-      description  = "#{location_name}\n\n#{object.description}"
+      description  = "#{location_name}\n\n#{event_description}"
     elsif has_url
       cal_location = object.videoconference_url
-      description  = object.description.to_s
+      description  = event_description
     elsif has_location
       cal_location = location_name
-      description  = object.description.to_s
+      description  = event_description
     else
       cal_location = nil
-      description  = object.description.to_s
+      description  = event_description
     end
 
     desc_encoded     = ERB::Util.url_encode(description)

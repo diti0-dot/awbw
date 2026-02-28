@@ -9,6 +9,7 @@ class Event < ApplicationRecord
   belongs_to :location, optional: true
   has_many :bookmarks, as: :bookmarkable, dependent: :destroy
   has_many :event_registrations, dependent: :destroy
+  has_many :payments
   has_many :forms, as: :owner, dependent: :destroy
 
   has_many :categorizable_items, dependent: :destroy, inverse_of: :categorizable, as: :categorizable
@@ -23,6 +24,9 @@ class Event < ApplicationRecord
   has_many :registrants, through: :event_registrations, class_name: "Person"
   has_many :categories, through: :categorizable_items
   has_many :sectors, through: :sectorable_items
+
+  # Callbacks
+  after_commit :build_public_registration_form, if: :public_registration_just_enabled?
 
   # Validations
   validates_presence_of :title, :start_date, :end_date
@@ -52,6 +56,15 @@ class Event < ApplicationRecord
     stories = stories.category_names_all(params[:category_names_all]) if params[:category_names_all].present?
     stories = stories.windows_type_name(params[:windows_type_name]) if params[:windows_type_name].present?
     stories
+  end
+
+  def active_registration_for(person)
+    return nil unless person
+    event_registrations.active.find_by(registrant_id: person.id)
+  end
+
+  def actively_registered?(person)
+    active_registration_for(person).present?
   end
 
   def ended?
@@ -107,5 +120,17 @@ class Event < ApplicationRecord
 
   def to_partial_path
     "events/registration_button"
+  end
+
+  private
+
+  def public_registration_just_enabled?
+    public_registration_enabled? && saved_change_to_public_registration_enabled?
+  end
+
+  def build_public_registration_form
+    return if forms.exists?(name: EventRegistrationFormBuilder::FORM_NAME)
+
+    EventRegistrationFormBuilder.build!(self)
   end
 end

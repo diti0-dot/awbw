@@ -1,6 +1,7 @@
 <% if allowed_to?(:manage?, Organization) %>
   <% expired = f.object.inactive? || (f.object.end_date.present? && f.object.end_date < Date.current) %>
   <div class="nested-fields flex flex-wrap gap-x-4 gap-y-1 items-end mb-4 rounded-lg border p-3 <%= expired ? 'bg-gray-100 border-gray-300 opacity-60' : 'bg-white border-gray-200' %>"
+       style="border-left: 4px solid <%= f.object.facilitator? ? '#e879f9' : '#d1d5db' %>"
        <% if f.object.persisted? %>id="<%= dom_id(f.object) %>"<% end %>
        data-controller="inactive-toggle">
     <div style="width: 350px; min-width: 350px; flex-shrink: 0;">
@@ -29,8 +30,9 @@
                   as: :text,
                   input_html: {
                     rows: 1,
-                    value: f.object&.title || f.object&.position || "FACILITATOR",
+                    value: f.object&.title || f.object&.position || "Facilitator",
                     style: "height: 42px; min-height: 42px;",
+                    data: { action: "input->affiliation-dates#recalculate" }
                   } %>
     </div>
 
@@ -41,7 +43,8 @@
                   input_html: {
                     type: "date",
                     value: (f.object.start_date || (Date.current unless f.object.persisted?))&.strftime("%Y-%m-%d"),
-                    class: "rounded-md border-gray-300 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                    class: "rounded-md border-gray-300 focus:ring-blue-500 focus:border-blue-500 text-sm",
+                    data: { action: "change->affiliation-dates#recalculate" }
                   } %>
     </div>
 
@@ -53,20 +56,21 @@
                     type: "date",
                     value: f.object.end_date&.strftime("%Y-%m-%d"),
                     class: "rounded-md border-gray-300 focus:ring-blue-500 focus:border-blue-500 text-sm",
-                    data: { action: "change->inactive-toggle#toggle" }
+                    data: { action: "change->inactive-toggle#toggle change->affiliation-dates#recalculate" }
                   } %>
     </div>
 
     <div class="w-full sm:w-auto pb-3">
       <label class="block text-sm font-medium text-gray-700 mb-1">Primary</label>
       <%= f.check_box :primary_contact,
+                      checked: f.object.primary_contact? || !f.object.persisted?,
                       class: "h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500" %>
     </div>
 
-    <div class="w-full text-right">
+    <div class="w-full text-right admin-only">
       <%= link_to_remove_association "Remove",
                                      f,
-                                     class: "text-sm text-gray-400 hover:text-red-600 underline whitespace-nowrap" %>
+                                     class: "text-sm text-gray-400 hover:text-red-600 underline whitespace-nowrap admin-only bg-blue-100 rounded px-2 py-1" %>
     </div>
   </div>
 <% else %>

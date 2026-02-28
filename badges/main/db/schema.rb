@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_02_24_000005) do
+ActiveRecord::Schema[8.1].define(version: 2026_02_28_000006) do
   create_table "action_text_mentions", charset: "utf8mb4", collation: "utf8mb4_unicode_ci", force: :cascade do |t|
     t.bigint "action_text_rich_text_id", null: false
     t.datetime "created_at", null: false
@@ -401,6 +401,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_02_24_000005) do
     t.datetime "created_at", null: false
     t.bigint "event_id"
     t.bigint "registrant_id", null: false
+    t.boolean "scholarship_tasks_completed", default: false, null: false
     t.string "status", default: "registered", null: false
     t.datetime "updated_at", null: false
     t.index ["event_id"], name: "index_event_registrations_on_event_id"
@@ -417,7 +418,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_02_24_000005) do
     t.boolean "autoshow_registration_close", default: true, null: false
     t.boolean "autoshow_time", default: true, null: false
     t.boolean "autoshow_title", default: true, null: false
-    t.boolean "autoshow_videoconference_url", default: true, null: false
+    t.boolean "autoshow_videoconference_label", default: true, null: false
+    t.boolean "autoshow_videoconference_link", default: true, null: false
     t.integer "cost_cents"
     t.datetime "created_at", null: false
     t.integer "created_by_id"
@@ -428,6 +430,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_02_24_000005) do
     t.integer "location_id"
     t.string "pre_date_text"
     t.string "pre_title"
+    t.boolean "public_registration_enabled", default: false, null: false
     t.boolean "publicly_featured", default: false, null: false
     t.boolean "publicly_visible", default: false, null: false
     t.boolean "published", default: false, null: false
@@ -435,6 +438,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_02_24_000005) do
     t.datetime "start_date", precision: nil, null: false
     t.string "title", null: false
     t.datetime "updated_at", null: false
+    t.string "videoconference_label", default: "Virtual event"
     t.string "videoconference_url"
     t.index ["created_by_id"], name: "index_events_on_created_by_id"
     t.index ["location_id"], name: "index_events_on_location_id"
@@ -488,7 +492,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_02_24_000005) do
     t.string "field_group"
     t.string "field_key"
     t.integer "form_id", null: false
-    t.string "instructional_hint"
+    t.text "instructional_hint"
     t.boolean "is_required", default: true
     t.integer "parent_id"
     t.integer "position"
@@ -644,17 +648,20 @@ ActiveRecord::Schema[8.1].define(version: 2026_02_24_000005) do
     t.integer "amount_cents", null: false
     t.datetime "created_at", null: false
     t.string "currency", default: "usd", null: false
+    t.bigint "event_id"
     t.string "failure_code"
     t.string "failure_message"
     t.bigint "payable_id", null: false
     t.string "payable_type", null: false
     t.bigint "payer_id", null: false
     t.string "payer_type", null: false
+    t.string "payment_type", default: "stripe", null: false
     t.string "status", null: false
     t.string "stripe_charge_id"
     t.json "stripe_metadata"
-    t.string "stripe_payment_intent_id", null: false
+    t.string "stripe_payment_intent_id"
     t.datetime "updated_at", null: false
+    t.index ["event_id"], name: "index_payments_on_event_id"
     t.index ["payable_type", "payable_id", "status"], name: "index_payments_on_payable_type_and_payable_id_and_status"
     t.index ["payable_type", "payable_id"], name: "index_payments_on_payable"
     t.index ["payer_type", "payer_id"], name: "index_payments_on_payer"
@@ -667,7 +674,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_02_24_000005) do
     t.text "bio", size: :medium
     t.boolean "blog_contributor", default: false, null: false
     t.datetime "created_at", null: false
-    t.integer "created_by_id", null: false
+    t.integer "created_by_id"
     t.date "date_of_birth"
     t.string "display_name_preference"
     t.string "email"
@@ -702,7 +709,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_02_24_000005) do
     t.string "pronouns"
     t.string "twitter_url"
     t.datetime "updated_at", null: false
-    t.integer "updated_by_id", null: false
+    t.integer "updated_by_id"
     t.string "youtube_url"
     t.index ["created_by_id"], name: "index_people_on_created_by_id"
     t.index ["updated_by_id"], name: "index_people_on_updated_by_id"
@@ -713,6 +720,25 @@ ActiveRecord::Schema[8.1].define(version: 2026_02_24_000005) do
     t.integer "legacy_id"
     t.string "security_cat"
     t.datetime "updated_at", precision: nil, null: false
+  end
+
+  create_table "person_form_form_fields", charset: "utf8mb4", collation: "utf8mb4_unicode_ci", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.integer "form_field_id"
+    t.bigint "person_form_id"
+    t.text "text"
+    t.datetime "updated_at", null: false
+    t.index ["form_field_id"], name: "index_person_form_form_fields_on_form_field_id"
+    t.index ["person_form_id"], name: "index_person_form_form_fields_on_person_form_id"
+  end
+
+  create_table "person_forms", charset: "utf8mb4", collation: "utf8mb4_unicode_ci", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.integer "form_id"
+    t.bigint "person_id"
+    t.datetime "updated_at", null: false
+    t.index ["form_id"], name: "index_person_forms_on_form_id"
+    t.index ["person_id"], name: "index_person_forms_on_person_id"
   end
 
   create_table "quotable_item_quotes", id: :integer, charset: "utf8mb4", collation: "utf8mb4_unicode_ci", force: :cascade do |t|
@@ -1313,8 +1339,13 @@ ActiveRecord::Schema[8.1].define(version: 2026_02_24_000005) do
   add_foreign_key "organizations", "locations"
   add_foreign_key "organizations", "organization_statuses"
   add_foreign_key "organizations", "windows_types"
+  add_foreign_key "payments", "events"
   add_foreign_key "people", "users", column: "created_by_id"
   add_foreign_key "people", "users", column: "updated_by_id"
+  add_foreign_key "person_form_form_fields", "form_fields"
+  add_foreign_key "person_form_form_fields", "person_forms"
+  add_foreign_key "person_forms", "forms"
+  add_foreign_key "person_forms", "people"
   add_foreign_key "quotable_item_quotes", "quotes"
   add_foreign_key "quotes", "workshops"
   add_foreign_key "report_form_field_answers", "answer_options"

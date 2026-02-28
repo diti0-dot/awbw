@@ -1,13 +1,14 @@
 <% content_for(:page_bg_class, "public") %>
 
 <div class="max-w-2xl mx-auto py-8 px-4">
+  <%= link_to "← Back to Event", event_path(@event), class: "text-sm text-gray-500 hover:text-gray-700 mb-4 inline-block" %>
 
   <%# ---- EVENT HEADER ---- %>
   <div class="text-center mb-8">
     <% if @event.respond_to?(:pre_title) && @event.pre_title.present? %>
       <p class="text-base font-semibold text-gray-700 mb-2" style="font-family: 'Telefon Bold', sans-serif; font-size: 42px"><%= @event.pre_title %></p>
     <% end %>
-    <h1 class="font-bold text-green-800 mb-4" style="font-family: Lato, sans-serif; font-size: 53px"><%= @event.title %></h1>
+    <h1 class="font-bold text-green-800 mb-4" style="font-family: Lato, sans-serif; font-size: 53px"><%= link_to @event.title, event_path(@event), class: "hover:underline" %></h1>
 
     <div class="text-center space-y-2">
       <div class="font-bold text-blue-900 uppercase" style="font-family: Lato, sans-serif; font-size: 35px">
@@ -22,6 +23,12 @@
         <div class="text-base text-gray-700"><%= @event.location.name %></div>
       <% end %>
     </div>
+  </div>
+
+  <div class="mb-4">
+    <%= link_to event_path(@event), class: "text-sm text-gray-500 hover:text-gray-700" do %>
+      &larr; Back to Event
+    <% end %>
   </div>
 
   <%# ---- REGISTRATION FORM CARD ---- %>
@@ -54,10 +61,17 @@
 
         <%# Row groupings: related fields share a grid row on md+ screens %>
         <%
+          fields_by_key_check = @form_fields.select(&:field_key).index_by(&:field_key)
+          email_row = if fields_by_key_check["confirm_email"]
+            { keys: %w[primary_email confirm_email], grid: "grid grid-cols-1 md:grid-cols-2 gap-4" }
+          else
+            { keys: %w[primary_email primary_email_type], grid: "grid grid-cols-1 md:grid-cols-3 gap-4", spans: { "primary_email" => "md:col-span-2" } }
+          end
+
           row_groups = [
             { keys: %w[first_name last_name], grid: "grid grid-cols-1 md:grid-cols-2 gap-4" },
             { keys: %w[nickname pronouns], grid: "grid grid-cols-1 md:grid-cols-2 gap-4" },
-            { keys: %w[primary_email primary_email_type], grid: "grid grid-cols-1 md:grid-cols-3 gap-4", spans: { "primary_email" => "md:col-span-2" } },
+            email_row,
             { keys: %w[secondary_email secondary_email_type], grid: "grid grid-cols-1 md:grid-cols-3 gap-4", spans: { "secondary_email" => "md:col-span-2" } },
             { keys: %w[mailing_city mailing_state mailing_zip], grid: "grid grid-cols-1 md:grid-cols-3 gap-4" },
             { keys: %w[phone phone_type], grid: "grid grid-cols-1 md:grid-cols-2 gap-4" },

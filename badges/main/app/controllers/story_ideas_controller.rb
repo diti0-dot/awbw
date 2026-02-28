@@ -15,6 +15,10 @@ class StoryIdeasController < ApplicationController
 
   def show
     authorize! @story_idea
+    @updated_by = Ahoy::Event.where(resource_type: "StoryIdea", resource_id: @story_idea.id)
+                              .where("name LIKE 'update.%'")
+                              .order(time: :desc)
+                              .first&.user
   end
 
   def new
@@ -41,6 +45,12 @@ class StoryIdeasController < ApplicationController
     StoryIdea.transaction do
       if @story_idea.save
         assign_associations(@story_idea)
+        NotificationServices::CreateNotification.call(
+          noticeable: @story_idea,
+          kind: :idea_submitted,
+          recipient_role: :person,
+          recipient_email: @story_idea.created_by.email,
+          notification_type: 0)
         NotificationServices::CreateNotification.call(
           noticeable: @story_idea,
           kind: :idea_submitted_fyi,

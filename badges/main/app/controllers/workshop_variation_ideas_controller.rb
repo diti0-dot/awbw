@@ -16,6 +16,10 @@ class WorkshopVariationIdeasController < ApplicationController
   def show
     authorize! @workshop_variation_idea
     track_view(@workshop_variation_idea)
+    @updated_by = Ahoy::Event.where(resource_type: "WorkshopVariationIdea", resource_id: @workshop_variation_idea.id)
+                              .where("name LIKE 'update.%'")
+                              .order(time: :desc)
+                              .first&.user
 
     @workshop = (@workshop_variation_idea.workshop || Workshop.where(id: params[:workshop_id]).last)&.decorate
     @bookmark = current_user&.bookmarks&.find_by(bookmarkable: @workshop)
@@ -41,6 +45,12 @@ class WorkshopVariationIdeasController < ApplicationController
     authorize! @workshop_variation_idea
 
     if @workshop_variation_idea.save
+      NotificationServices::CreateNotification.call(
+        noticeable: @workshop_variation_idea,
+        kind: :idea_submitted,
+        recipient_role: :person,
+        recipient_email: @workshop_variation_idea.created_by.email,
+        notification_type: 0)
       NotificationServices::CreateNotification.call(
         noticeable: @workshop_variation_idea,
         kind: :idea_submitted_fyi,
