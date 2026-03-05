@@ -7,6 +7,8 @@ RSpec.describe EventRegistration, type: :model do
     it { should belong_to(:event).required }
     it { should belong_to(:registrant).required }
     it { should have_many(:comments).dependent(:destroy) }
+    it { should have_many(:event_registration_organizations).dependent(:destroy) }
+    it { should have_many(:organizations).through(:event_registration_organizations) }
   end
 
   describe "#active?" do
@@ -140,6 +142,61 @@ RSpec.describe EventRegistration, type: :model do
     end
   end
 
+  describe "#paid_in_full?" do
+    let(:event) { create(:event, cost_cents: 1000) }
+    let(:user) { create(:user, :with_person) }
+
+    it "returns true when event is free" do
+      free_event = create(:event, cost_cents: 0)
+      reg = create(:event_registration, event: free_event, registrant: user.person)
+      expect(reg).to be_paid_in_full
+    end
+
+    it "returns true when registrant is a scholarship recipient" do
+      reg = create(:event_registration, :scholarship, event: event, registrant: user.person)
+      expect(reg).to be_paid_in_full
+    end
+
+    it "returns true when payments cover cost" do
+      reg = create(:event_registration, event: event, registrant: user.person)
+      create(:payment, :succeeded, payable: reg, payer: user, amount_cents: 1000)
+      expect(reg).to be_paid_in_full
+    end
+
+    it "returns false when payments are insufficient" do
+      reg = create(:event_registration, event: event, registrant: user.person)
+      create(:payment, :succeeded, payable: reg, payer: user, amount_cents: 500)
+      expect(reg).not_to be_paid_in_full
+    end
+
+    it "returns correct result when payments are preloaded" do
+      reg = create(:event_registration, event: event, registrant: user.person)
+      create(:payment, :succeeded, payable: reg, payer: user, amount_cents: 1000)
+
+      preloaded = EventRegistration.includes(:payments).find(reg.id)
+      expect(preloaded.payments).to be_loaded
+      expect(preloaded).to be_paid_in_full
+    end
+
+    it "returns correct result when preloaded payments are insufficient" do
+      reg = create(:event_registration, event: event, registrant: user.person)
+      create(:payment, :succeeded, payable: reg, payer: user, amount_cents: 500)
+
+      preloaded = EventRegistration.includes(:payments).find(reg.id)
+      expect(preloaded.payments).to be_loaded
+      expect(preloaded).not_to be_paid_in_full
+    end
+
+    it "ignores non-succeeded payments when preloaded" do
+      reg = create(:event_registration, event: event, registrant: user.person)
+      create(:payment, payable: reg, payer: user, amount_cents: 1000, status: "pending")
+
+      preloaded = EventRegistration.includes(:payments).find(reg.id)
+      expect(preloaded.payments).to be_loaded
+      expect(preloaded).not_to be_paid_in_full
+    end
+  end
+
   describe '.search_by_params' do
     let(:person_alice) { create(:person, first_name: 'Alice', last_name: 'Smith') }
     let(:person_bob) { create(:person, first_name: 'Bob', last_name: 'Jones') }
@@ -170,6 +227,103 @@ RSpec.describe EventRegistration, type: :model do
       results = EventRegistration.search_by_params(registrant_id: person_alice.id, event_id: event_art.id)
       expect(results).to include(reg_alice_art)
       expect(results).not_to include(reg_bob_music)
+    end
+  end
+
+  describe "cancellation emails" do
+    it "sends cancellation emails when status changes to cancelled" do
+      reg = create(:event_registration, status: "registered")
+
+      expect(NotificationServices::CreateNotification).to receive(:call).with(
+        hash_including(kind: "event_registration_cancelled", recipient_role: :person)
+      )
+      expect(NotificationServices::CreateNotification).to receive(:call).with(
+        hash_including(kind: "event_registration_cancelled_fyi", recipient_role: :admin)
+      )
+
+      reg.update!(status: "cancelled")
+    end
+
+    it "does not send emails when status changes to something other than cancelled" do
+      reg = create(:event_registration, status: "registered")
+
+      expect(NotificationServices::CreateNotification).not_to receive(:call)
+
+      reg.update!(status: "attended")
+    end
+
+    it "does not send emails when a non-status attribute changes" do
+      reg = create(:event_registration, status: "cancelled")
+
+      expect(NotificationServices::CreateNotification).not_to receive(:call)
+
+      reg.update!(scholarship_recipient: true)
+    end
+  end
+
+  describe "snapshot_registrant_organizations" do
+    it "copies active affiliations to the registration on create" do
+      org = create(:organization)
+      person = create(:person)
+      create(:affiliation, person: person, organization: org)
+
+      reg = create(:event_registration, registrant: person)
+      expect(reg.organizations).to include(org)
+    end
+
+    it "copies multiple active affiliations" do
+      org1 = create(:organization)
+      org2 = create(:organization)
+      person = create(:person)
+      create(:affiliation, person: person, organization: org1)
+      create(:affiliation, person: person, organization: org2)
+
+      reg = create(:event_registration, registrant: person)
+      expect(reg.organizations).to contain_exactly(org1, org2)
+    end
+
+    it "skips inactive affiliations" do
+      org = create(:organization)
+      person = create(:person)
+      create(:affiliation, person: person, organization: org, inactive: true)
+
+      reg = create(:event_registration, registrant: person)
+      expect(reg.organizations).to be_empty
+    end
+
+    it "skips affiliations with past end dates" do
+      org = create(:organization)
+      person = create(:person)
+      create(:affiliation, person: person, organization: org, end_date: 1.day.ago)
+
+      reg = create(:event_registration, registrant: person)
+      expect(reg.organizations).to be_empty
+    end
+
+    it "creates no records when registrant has no affiliations" do
+      person = create(:person)
+      reg = create(:event_registration, registrant: person)
+      expect(reg.organizations).to be_empty
+    end
+  end
+
+  describe "slug" do
+    it "generates a slug on create" do
+      registration = create(:event_registration)
+      expect(registration.slug).to be_present
+      expect(registration.slug.length).to eq(22)
+    end
+
+    it "does not change slug on update" do
+      registration = create(:event_registration)
+      original_slug = registration.slug
+      registration.update!(status: "attended")
+      expect(registration.reload.slug).to eq(original_slug)
+    end
+
+    it "generates unique slugs" do
+      slugs = 10.times.map { create(:event_registration).slug }
+      expect(slugs.uniq.size).to eq(10)
     end
   end
 end

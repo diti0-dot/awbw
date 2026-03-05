@@ -12,7 +12,9 @@ class NotificationMailerJob < ApplicationJob
       "workshop_log_submitted_fyi" => ->(n) { NotificationMailer.workshop_log_submitted_fyi(n) },
       "reset_password_fyi"   => ->(n) { NotificationMailer.reset_password_fyi(n) },
       "event_registration_confirmation" => ->(n) { EventMailer.event_registration_confirmation(n.noticeable) },
-      "event_registration_confirmation_fyi" => ->(n) { NotificationMailer.event_registration_confirmation_fyi(n) }
+      "event_registration_confirmation_fyi" => ->(n) { NotificationMailer.event_registration_confirmation_fyi(n) },
+      "event_registration_cancelled" => ->(n) { EventMailer.event_registration_cancelled(n.noticeable) },
+      "event_registration_cancelled_fyi" => ->(n) { NotificationMailer.event_registration_cancelled_fyi(n) }
     }
 
     mailer = mailer_map[notification.kind]&.call(notification)
@@ -24,14 +26,13 @@ class NotificationMailerJob < ApplicationJob
 
       mailer.deliver_now
 
-      if mailer.body.blank?
-        Rails.logger.warn("WARNING: Mailer body is empty for Notification #{notification.id} (#{notification.kind})")
-      end
-
       NotificationServices::PersistDeliveredEmail.call(
         notification: notification,
         mail: mailer
       ) if persist_delivered_email
     end
+  rescue => e
+    notification&.record_error!(e)
+    raise
   end
 end

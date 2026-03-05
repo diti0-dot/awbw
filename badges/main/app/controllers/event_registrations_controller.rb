@@ -1,7 +1,7 @@
 class EventRegistrationsController < ApplicationController
   require "csv"
 
-  skip_before_action :authenticate_user!, only: [ :show ]
+  # show redirects to slug URL; kept for backwards compatibility
   before_action :set_event_registration, only: [ :show, :edit, :update, :destroy ]
 
   def index
@@ -10,7 +10,7 @@ class EventRegistrationsController < ApplicationController
     base_scope = authorized_scope(EventRegistration.all)
     filtered = base_scope.search_by_params(params)
     @event_registrations_count = filtered.size
-    @event_registrations = filtered.includes(:registrant, :event).paginate(page: params[:page], per_page: per_page)
+    @event_registrations = filtered.includes(registrant: [ :user, { avatar_attachment: :blob } ], event: :event_forms).paginate(page: params[:page], per_page: per_page)
     @events = Event.order(start_date: :desc)
     @filtered_event = Event.find_by(id: params[:event_id]) if params[:event_id].present?
     @registrants = authorized_scope(Person.left_joins(:user))
@@ -30,6 +30,12 @@ class EventRegistrationsController < ApplicationController
 
   def show
     authorize! @event_registration
+
+    if @event_registration.slug.present?
+      redirect_to registration_ticket_path(@event_registration.slug), status: :moved_permanently
+    else
+      redirect_to edit_event_registration_path(@event_registration)
+    end
   end
 
   def new
@@ -48,39 +54,17 @@ class EventRegistrationsController < ApplicationController
     authorize! @event_registration
 
     if @event_registration.save
-      NotificationServices::CreateNotification.call(
-        noticeable: @event_registration,
-        kind: "event_registration_confirmation",
-        recipient_role: :person,
-        recipient_email: @event_registration.registrant.preferred_email,
-        notification_type: 0)
-      NotificationServices::CreateNotification.call(
-        noticeable: @event_registration,
-        kind: "event_registration_confirmation_fyi",
-        recipient_role: :admin,
-        recipient_email: ENV.fetch("REPLY_TO_EMAIL", "programs@awbw.org"),
-        notification_type: 0)
-
       respond_to do |format|
         format.html {
-          if params.dig(:event_registration, :event_id).present?
-            redirect_to manage_event_path(@event_registration.event),
-              notice: "Registration created."
-          else
-            redirect_to @event_registration,
-              notice: "Registration created."
-          end
+          redirect_to confirm_event_registration_path(@event_registration, return_to: params[:return_to])
         }
       end
     else
       respond_to do |format|
         format.html {
-          if @event_registration.event_id.present?
-            redirect_to manage_event_path(@event_registration.event),
-              alert: @event_registration.errors.full_messages.to_sentence
-          else
-            redirect_to event_registrations_path,
-              alert: @event_registration.errors.full_messages.to_sentence
+          case params[:return_to]
+          when "manage" then redirect_to manage_event_path(@event_registration.event), alert: @event_registration.errors.full_messages.to_sentence
+          else redirect_to event_registrations_path, alert: @event_registration.errors.full_messages.to_sentence
           end
         }
       end
@@ -97,10 +81,10 @@ class EventRegistrationsController < ApplicationController
       respond_to do |format|
         format.turbo_stream
         format.html {
-          if params[:return_to] == "manage"
-            redirect_to manage_event_path(@event_registration.event), notice: "Registration was successfully updated.", status: :see_other
-          else
-            redirect_to @event_registration, notice: "Registration was successfully updated.", status: :see_other
+          case params[:return_to]
+          when "manage" then redirect_to manage_event_path(@event_registration.event), notice: "Registration was successfully updated.", status: :see_other
+          when "index" then redirect_to event_registrations_path, notice: "Registration was successfully updated.", status: :see_other
+          else redirect_to registration_ticket_path(@event_registration.slug), notice: "Registration was successfully updated.", status: :see_other
           end
         }
       end
@@ -115,15 +99,48 @@ class EventRegistrationsController < ApplicationController
     end
   end
 
+  def confirm
+    @event_registration = EventRegistration.includes(registrant: :user, event: :location).find(params[:id])
+    authorize! @event_registration, to: :confirm?
+    @person = @event_registration.registrant
+    @user = @person.user
+    @return_to = params[:return_to]
+  end
+
+  def process_confirm
+    @event_registration = EventRegistration.includes(registrant: :user).find(params[:id])
+    authorize! @event_registration, to: :process_confirm?
+
+    result = EventRegistrationServices::ProcessConfirmation.call(
+      event_registration: @event_registration,
+      person: @event_registration.registrant,
+      create_user: params[:create_user] == "1",
+      send_invite: params[:send_invite] == "1",
+      send_confirmation_email: params[:send_confirmation_email] == "1",
+      send_admin_fyi: params[:send_admin_fyi] == "1",
+      current_user: current_user
+    )
+
+    case params[:return_to]
+    when "manage" then redirect_to manage_event_path(@event_registration.event), notice: result.summary
+    when "index" then redirect_to event_registrations_path, notice: result.summary
+    else redirect_to registration_ticket_path(@event_registration.slug), notice: result.summary
+    end
+  end
+
   def destroy
     authorize! @event_registration
+    event = @event_registration.event
     if @event_registration.destroy
       flash[:notice] = "Registration deleted."
-
     else
       flash[:alert] = @event_registration.errors.full_messages.to_sentence
     end
-    redirect_to event_registrations_path
+
+    case params[:return_to]
+    when "manage" then redirect_to manage_event_path(event)
+    else redirect_to event_registrations_path
+    end
   end
 
   # Optional hooks for setting variables for forms or index
@@ -142,13 +159,15 @@ class EventRegistrationsController < ApplicationController
   private
 
   def set_event_registration
-    @event_registration = EventRegistration.includes(comments: [ :created_by, :updated_by ]).find(params[:id])
+    @event_registration = EventRegistration.includes({ registrant: { affiliations: :organization } }, { event: [ :location, :event_forms ] }, :organizations, comments: [ :created_by, :updated_by ]).find(params[:id])
   end
 
   # Strong parameters
   def event_registration_params
     params.require(:event_registration).permit(
-      :event_id, :registrant_id, :status, :scholarship_tasks_completed,
+      :event_id, :registrant_id, :status,
+      :scholarship_requested, :scholarship_recipient, :scholarship_tasks_completed,
+      organization_ids: [],
       comments_attributes: [ :id, :body, :_destroy ]
     )
   end
@@ -163,7 +182,7 @@ class EventRegistrationsController < ApplicationController
 
   def csv_export(registrations)
     CSV.generate(headers: true) do |csv|
-      csv << [ "First name", "Last name", "Email", "Event" ]
+      csv << [ "First name", "Last name", "Email", "Event", "Scholarship recipient", "Scholarship tasks completed" ]
       registrations.find_each do |er|
         r = er.registrant
         e = er.event
@@ -171,7 +190,9 @@ class EventRegistrationsController < ApplicationController
           r&.first_name.to_s,
           r&.last_name.to_s,
           r&.preferred_email.to_s,
-          e&.title.to_s
+          e&.title.to_s,
+          er.scholarship_recipient? ? "Yes" : "No",
+          er.scholarship_tasks_completed? ? "Yes" : "No"
         ]
       end
     end

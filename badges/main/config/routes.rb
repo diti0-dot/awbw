@@ -41,6 +41,10 @@ Rails.application.routes.draw do
       post :send_welcome_instructions
       post :toggle_lock_status
       post :confirm_email
+      get :confirm_email_change
+      post :process_email_change
+      get :confirm_email_manual
+      post :process_email_manual
     end
     resources :comments, only: [ :index, :create ]
   end
@@ -61,6 +65,7 @@ Rails.application.routes.draw do
   namespace :admin do
     get "/",                         to: "home#index" # admin home page
     get "activities/events",         to: "ahoy_activities#index", as: "activities_events"
+    get "activities/events/:id",    to: "ahoy_activities#show", as: "activities_event"
     get "activities/visits",         to: "ahoy_activities#visits", as: "activities_visits"
     get "activities/charts",         to: "ahoy_activities#charts", as: "activities_charts"
     get "activities/counts",         to: "analytics#index", as: "activities_counts"
@@ -85,7 +90,15 @@ Rails.application.routes.draw do
     end
   end
   resources :community_news
+  get "registration/:slug", to: "events/registrations#show", as: :registration_ticket
+  post "registration/:slug/resend_confirmation", to: "events/registrations#resend_confirmation", as: :registration_resend_confirmation
+  post "registration/:slug/cancel", to: "events/registrations#cancel", as: :registration_cancel
+  post "registration/:slug/reactivate", to: "events/registrations#reactivate", as: :registration_reactivate
   resources :event_registrations do
+    member do
+      get :confirm
+      post :process_confirm
+    end
     resources :comments, only: [ :index, :create ]
   end
   resources :events do

@@ -21,12 +21,23 @@ class Notification < ApplicationRecord
 
     event_registration_confirmation
     event_registration_confirmation_fyi
+    event_registration_cancelled
+    event_registration_cancelled_fyi
     idea_submitted
     idea_submitted_fyi
     report_submitted
     report_submitted_fyi
     workshop_log_submitted
     workshop_log_submitted_fyi
+  ].freeze
+
+  # Devise-originated kinds that require security tokens and cannot be resent
+  # through the notification system. Admins should use Devise's own resend
+  # mechanisms (e.g. ProcessEmailManualConfirm) for these.
+  DEVISE_KINDS = %w[
+    account_confirmation
+    reset_password
+    welcome_instructions
   ].freeze
 
   RECIPIENT_ROLES = %w[
@@ -59,8 +70,24 @@ class Notification < ApplicationRecord
     stories
   end
 
+  def resendable?
+    !kind.in?(DEVISE_KINDS)
+  end
+
   def delivered?
     delivered_at.present?
+  end
+
+  def failed?
+    error_at.present? && !delivered?
+  end
+
+  def record_error!(exception)
+    update!(
+      error_message: exception.message.truncate(500),
+      error_class: exception.class.name,
+      error_at: Time.current
+    )
   end
 
   def resend_count

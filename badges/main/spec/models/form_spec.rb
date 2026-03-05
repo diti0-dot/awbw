@@ -4,7 +4,9 @@ RSpec.describe Form do
   # pending "add some examples to (or delete) #{__FILE__}"
 
   describe 'associations' do
-    it { should belong_to(:owner) } # Polymorphic
+    it { should belong_to(:owner).optional } # Polymorphic, optional for standalone forms
+    it { should have_many(:event_forms).dependent(:destroy) }
+    it { should have_many(:events).through(:event_forms) }
     it { should have_many(:form_fields).dependent(:destroy).inverse_of(:form) }
     it { should have_many(:user_forms) }
     it { should have_many(:reports) } # As :owner
@@ -24,6 +26,16 @@ RSpec.describe Form do
   #   # expect(build(:form)).to be_valid
   #   pending("Requires functional owner factory and association uncommented")
   # end
+
+  describe ".scholarship_application" do
+    it "returns only forms marked as scholarship applications" do
+      regular_form = create(:form)
+      scholarship_form = create(:form, scholarship_application: true)
+
+      expect(Form.scholarship_application).to include(scholarship_form)
+      expect(Form.scholarship_application).not_to include(regular_form)
+    end
+  end
 
   describe '#display_name' do
     let(:user_owner) do

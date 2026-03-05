@@ -50,6 +50,25 @@ unless amy.person.present?
   amy.update!(person: person)
 end
 
+# Non-Admin 2
+priya = User.find_or_create_by!(email: "priya.user@example.com") do |user|
+  user.password = "password"
+  user.super_user = false
+  user.confirmed_at = Time.current
+end
+
+unless priya.person.present?
+  person = Person.create!(
+    first_name: "Priya",
+    last_name: "Sharma",
+    email: priya.email,
+    created_by: priya,
+    updated_by: priya,
+    profile_is_searchable: true
+  )
+  priya.update!(person: person)
+end
+
 # Orphaned
 User.find_or_create_by!(email: "orphaned_reports@awbw.org") do |user|
   user.first_name = "Orphaned Reports"
@@ -59,8 +78,175 @@ User.find_or_create_by!(email: "orphaned_reports@awbw.org") do |user|
   user.confirmed_at = Time.current
 end
 
+# Invited but hasn't clicked the link yet
+invited = User.find_or_create_by!(email: "invited.pending@example.com") do |user|
+  user.password = "password"
+  user.super_user = false
+end
+unless invited.confirmed_at.present?
+  invited.update_columns(
+    confirmed_at: nil,
+    welcome_instructions_token: Devise.friendly_token,
+    welcome_instructions_created_at: 3.days.ago,
+    welcome_instructions_sent_at: 3.days.ago
+  )
+end
+unless invited.person.present?
+  person = Person.create!(
+    first_name: "Invited",
+    last_name: "Pending",
+    email: invited.email,
+    created_by: admin,
+    updated_by: admin,
+    profile_is_searchable: true
+  )
+  invited.update!(person: person)
+end
+
+# Clicked confirmation link but didn't set password
+confirmed_no_pw = User.find_or_create_by!(email: "confirmed.nopassword@example.com") do |user|
+  user.password = "password"
+  user.super_user = false
+end
+unless confirmed_no_pw.welcome_instructions_token.present?
+  token = Devise.friendly_token
+  confirmed_no_pw.update_columns(
+    confirmed_at: 2.days.ago,
+    welcome_instructions_token: token,
+    welcome_instructions_created_at: 5.days.ago,
+    welcome_instructions_sent_at: 5.days.ago
+  )
+end
+unless confirmed_no_pw.person.present?
+  person = Person.create!(
+    first_name: "Confirmed",
+    last_name: "NoPassword",
+    email: confirmed_no_pw.email,
+    created_by: admin,
+    updated_by: admin,
+    profile_is_searchable: true
+  )
+  confirmed_no_pw.update!(person: person)
+end
+
+# Locked account (too many failed attempts)
+locked = User.find_or_create_by!(email: "locked.user@example.com") do |user|
+  user.password = "password"
+  user.super_user = false
+  user.confirmed_at = 1.month.ago
+end
+unless locked.locked_at.present?
+  locked.update_columns(
+    locked_at: 1.day.ago,
+    failed_attempts: Devise.maximum_attempts
+  )
+end
+unless locked.person.present?
+  person = Person.create!(
+    first_name: "Locked",
+    last_name: "User",
+    email: locked.email,
+    created_by: admin,
+    updated_by: admin,
+    profile_is_searchable: true
+  )
+  locked.update!(person: person)
+end
+
+# Never invited (created but no confirmation sent)
+never_invited = User.find_or_create_by!(email: "never.invited@example.com") do |user|
+  user.password = "password"
+  user.super_user = false
+end
+unless never_invited.welcome_instructions_sent_at.present?
+  never_invited.update_columns(confirmed_at: nil)
+end
+unless never_invited.person.present?
+  person = Person.create!(
+    first_name: "Never",
+    last_name: "Invited",
+    email: never_invited.email,
+    created_by: admin,
+    updated_by: admin,
+    profile_is_searchable: true
+  )
+  never_invited.update!(person: person)
+end
+
+# Invited a while ago, never clicked (stale invite)
+stale_invited = User.find_or_create_by!(email: "stale.invite@example.com") do |user|
+  user.password = "password"
+  user.super_user = false
+end
+unless stale_invited.confirmed_at.present?
+  stale_invited.update_columns(
+    confirmed_at: nil,
+    welcome_instructions_token: Devise.friendly_token,
+    welcome_instructions_created_at: 45.days.ago,
+    welcome_instructions_sent_at: 45.days.ago
+  )
+end
+unless stale_invited.person.present?
+  person = Person.create!(
+    first_name: "Stale",
+    last_name: "Invite",
+    email: stale_invited.email,
+    created_by: admin,
+    updated_by: admin,
+    profile_is_searchable: true
+  )
+  stale_invited.update!(person: person)
+end
+
+# Invited yesterday
+recent_invited = User.find_or_create_by!(email: "recent.invite@example.com") do |user|
+  user.password = "password"
+  user.super_user = false
+end
+unless recent_invited.confirmed_at.present?
+  recent_invited.update_columns(
+    confirmed_at: nil,
+    welcome_instructions_token: Devise.friendly_token,
+    welcome_instructions_created_at: 1.day.ago,
+    welcome_instructions_sent_at: 1.day.ago
+  )
+end
+unless recent_invited.person.present?
+  person = Person.create!(
+    first_name: "Recent",
+    last_name: "Invite",
+    email: recent_invited.email,
+    created_by: admin,
+    updated_by: admin,
+    profile_is_searchable: true
+  )
+  recent_invited.update!(person: person)
+end
+
+# Never invited, no person record either
+User.find_or_create_by!(email: "orphan.uninvited@example.com") do |user|
+  user.password = "password"
+  user.super_user = false
+end.tap do |u|
+  u.update_columns(confirmed_at: nil) unless u.welcome_instructions_sent_at.present?
+end
+
+# Invited, no person record
+invited_no_person = User.find_or_create_by!(email: "invited.noperson@example.com") do |user|
+  user.password = "password"
+  user.super_user = false
+end
+unless invited_no_person.confirmed_at.present?
+  invited_no_person.update_columns(
+    confirmed_at: nil,
+    welcome_instructions_token: Devise.friendly_token,
+    welcome_instructions_created_at: 10.days.ago,
+    welcome_instructions_sent_at: 10.days.ago
+  )
+end
+
 # Only reset seed-user passwords, not every user in the database
-seed_emails = %w[umberto.user@example.com amy.user@example.com orphaned_reports@awbw.org]
+seed_emails = %w[umberto.user@example.com amy.user@example.com priya.user@example.com orphaned_reports@awbw.org]
 user_password = Devise::Encryptor.digest(User, "password")
 User.where(email: seed_emails).update_all(encrypted_password: user_password)
 
@@ -90,7 +276,7 @@ awbw_org = Organization.find_or_create_by!(name: ENV.fetch("ORGANIZATION_NAME", 
   org.organization_status = OrganizationStatus.find_by!(name: "Active")
 end
 
-[ admin, amy ].each do |user|
+[ admin, amy, priya ].each do |user|
   next unless user.person.present? && user.person.affiliations.empty?
 
   Affiliation.create!(
@@ -269,20 +455,15 @@ workshop_env_type.update!(display_text: "Workshop Environments", story_specific:
   cat.update!(published: true) unless cat.published?
 end
 
-puts "Creating registerable Event with registration form…"
-reg_event = Event.find_or_create_by!(title: "AWBW Facilitator Training") do |event|
-  event.start_date = 2.months.from_now
-  event.end_date = 2.months.from_now + 3.hours
-  event.registration_close_date = 2.months.from_now - 1.day
-  event.published = true
-  event.publicly_visible = true
-  event.featured = true
-  event.public_registration_enabled = true
-  event.cost = 150
-  event.created_by = User.find_by(email: "umberto.user@example.com")
+puts "Creating standalone registration forms…"
+unless Form.standalone.exists?(name: ShortEventRegistrationFormBuilder::FORM_NAME)
+  ShortEventRegistrationFormBuilder.build_standalone!
 end
 
-puts "Creating Scholarship Application form on the same event…"
-unless reg_event.forms.exists?(name: ScholarshipApplicationFormBuilder::FORM_NAME)
-  ScholarshipApplicationFormBuilder.build!(reg_event)
+unless Form.standalone.exists?(name: ExtendedEventRegistrationFormBuilder::FORM_NAME)
+  ExtendedEventRegistrationFormBuilder.build_standalone!
+end
+
+unless Form.standalone.exists?(name: ScholarshipApplicationFormBuilder::FORM_NAME)
+  ScholarshipApplicationFormBuilder.build_standalone!
 end

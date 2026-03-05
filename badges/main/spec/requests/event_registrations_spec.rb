@@ -33,7 +33,7 @@ RSpec.describe "EventRegistrations", type: :request do
 
         rows = CSV.parse(response.body)
         expect(rows.size).to be >= 1
-        expect(rows.first).to eq([ "First name", "Last name", "Email", "Event" ])
+        expect(rows.first).to eq([ "First name", "Last name", "Email", "Event", "Scholarship recipient", "Scholarship tasks completed" ])
 
         data_rows = rows.drop(1)
         expect(data_rows).not_to be_empty
@@ -42,9 +42,51 @@ RSpec.describe "EventRegistrations", type: :request do
           person.first_name.to_s,
           person.last_name.to_s,
           person.preferred_email.to_s,
-          event.title.to_s
+          event.title.to_s,
+          "No",
+          "No"
         ]
         expect(data_rows).to include(expected_row)
+      end
+
+      context "registration form icon" do
+        let(:reg_form) { create(:form, :standalone, name: "Registration Form") }
+        let(:person) { existing_registration.registrant }
+
+        it "shows green icon when person submitted the current registration form" do
+          create(:event_form, event: event, form: reg_form, role: "registration")
+          create(:person_form, person: person, form: reg_form)
+
+          get event_registrations_path
+
+          expect(response.body).to include("fa-solid fa-file-lines")
+        end
+
+        it "shows gray icon when person has not submitted any form" do
+          create(:event_form, event: event, form: reg_form, role: "registration")
+
+          get event_registrations_path
+
+          expect(response.body).to include("fa-regular fa-file-lines")
+        end
+
+        it "shows green icon when person submitted a non-registration form for the event" do
+          scholarship_form = create(:form, :standalone, name: "Scholarship Form")
+          create(:event_form, event: event, form: reg_form, role: "registration")
+          create(:event_form, event: event, form: scholarship_form, role: "scholarship")
+          create(:person_form, person: person, form: scholarship_form)
+
+          get event_registrations_path
+
+          expect(response.body).to include("fa-solid fa-file-lines")
+          expect(response.body).not_to include("fa-regular fa-file-lines")
+        end
+
+        it "does not show any form icon when event has no forms" do
+          get event_registrations_path
+
+          expect(response.body).not_to include("fa-file-lines")
+        end
       end
 
       it "paginates results" do
@@ -63,11 +105,101 @@ RSpec.describe "EventRegistrations", type: :request do
     end
 
     describe "POST /event_registrations" do
-      it "can create registration" do
+      it "creates registration and redirects admin to confirm page" do
         expect {
           post event_registrations_path,
-               params: { event_registration: { event_id: event.id, registrant_id: admin.person.id } }
+               params: { return_to: "manage", event_registration: { event_id: event.id, registrant_id: admin.person.id } }
         }.to change(EventRegistration, :count).by(1)
+
+        registration = EventRegistration.last
+        expect(response).to redirect_to(confirm_event_registration_path(registration, return_to: "manage"))
+      end
+    end
+
+    describe "GET /event_registrations/:id/confirm" do
+      it "renders the confirm page" do
+        get confirm_event_registration_path(existing_registration, return_to: "manage")
+        expect(response).to have_http_status(:success)
+      end
+    end
+
+    describe "POST /event_registrations/:id/process_confirm" do
+      it "redirects to manage page when return_to is manage" do
+        post process_confirm_event_registration_path(existing_registration),
+             params: { return_to: "manage" }
+
+        expect(response).to redirect_to(manage_event_path(existing_registration.event))
+        expect(flash[:notice]).to eq("Registration created.")
+      end
+
+      it "redirects to ticket page when return_to is ticket" do
+        post process_confirm_event_registration_path(existing_registration),
+             params: { return_to: "ticket" }
+
+        expect(response).to redirect_to(registration_ticket_path(existing_registration.slug))
+      end
+
+      it "sends only confirmation email when selected alone" do
+        allow(NotificationServices::CreateNotification).to receive(:call)
+
+        post process_confirm_event_registration_path(existing_registration),
+             params: { return_to: "manage", send_confirmation_email: "1" }
+
+        expect(flash[:notice]).to include("Registration confirmation email sent")
+        expect(flash[:notice]).not_to include("Admin notification")
+      end
+
+      it "sends only admin FYI when selected alone" do
+        allow(NotificationServices::CreateNotification).to receive(:call)
+
+        post process_confirm_event_registration_path(existing_registration),
+             params: { return_to: "manage", send_admin_fyi: "1" }
+
+        expect(flash[:notice]).to include("Admin notification email sent")
+        expect(flash[:notice]).not_to include("Registration confirmation")
+      end
+
+      it "sends both emails when both selected" do
+        allow(NotificationServices::CreateNotification).to receive(:call)
+
+        post process_confirm_event_registration_path(existing_registration),
+             params: { return_to: "manage", send_confirmation_email: "1", send_admin_fyi: "1" }
+
+        expect(flash[:notice]).to include("Registration confirmation email sent")
+        expect(flash[:notice]).to include("Admin notification email sent")
+      end
+
+      it "creates user account when selected" do
+        person = existing_registration.registrant
+        person.user.destroy!
+        person.update!(email: "newuser@example.com")
+        person.reload
+
+        post process_confirm_event_registration_path(existing_registration),
+             params: { return_to: "manage", create_user: "1" }
+
+        expect(flash[:notice]).to include("User account created")
+        expect(person.reload.user).to be_present
+      end
+
+      it "creates user and sends invite when both selected" do
+        person = existing_registration.registrant
+        person.user.destroy!
+        person.update!(email: "invited@example.com")
+        person.reload
+
+        post process_confirm_event_registration_path(existing_registration),
+             params: { return_to: "manage", create_user: "1", send_invite: "1" }
+
+        expect(flash[:notice]).to include("User account created")
+        expect(flash[:notice]).to include("System invite sent")
+      end
+
+      it "skips with no actions when nothing selected" do
+        post process_confirm_event_registration_path(existing_registration),
+             params: { return_to: "manage" }
+
+        expect(flash[:notice]).to eq("Registration created.")
       end
     end
 
@@ -76,7 +208,7 @@ RSpec.describe "EventRegistrations", type: :request do
         patch event_registration_path(existing_registration),
               params: { event_registration: { event_id: new_event.id } }
 
-        expect(response).to redirect_to(event_registration_path(existing_registration))
+        expect(response).to redirect_to(registration_ticket_path(existing_registration.slug))
         expect(existing_registration.reload.event_id).to eq(new_event.id)
       end
     end
@@ -103,6 +235,13 @@ RSpec.describe "EventRegistrations", type: :request do
     describe "GET /event_registrations" do
       it "redirects to root" do
         get event_registrations_path
+        expect(response).to redirect_to(root_path)
+      end
+    end
+
+    describe "GET /event_registrations/:id (admin-only show)" do
+      it "redirects to root (unauthorized)" do
+        get event_registration_path(existing_registration)
         expect(response).to redirect_to(root_path)
       end
     end
@@ -134,7 +273,7 @@ RSpec.describe "EventRegistrations", type: :request do
                  }
           }.not_to change(EventRegistration, :count)
 
-          expect(response).to redirect_to(manage_event_path(event))
+          expect(response).to redirect_to(event_registrations_path)
           expect(flash[:alert]).to be_present
         end
       end
@@ -149,13 +288,27 @@ RSpec.describe "EventRegistrations", type: :request do
       end
     end
 
+    describe "GET /event_registrations/:id/confirm" do
+      it "redirects to root (unauthorized)" do
+        get confirm_event_registration_path(existing_registration)
+        expect(response).to redirect_to(root_path)
+      end
+    end
+
+    describe "POST /event_registrations/:id/process_confirm" do
+      it "redirects to root (unauthorized)" do
+        post process_confirm_event_registration_path(existing_registration)
+        expect(response).to redirect_to(root_path)
+      end
+    end
+
     describe "PATCH /event_registrations/:id" do
       it "can update attendance status" do
         patch event_registration_path(existing_registration),
               params: { event_registration: { status: "cancelled" } }
 
         expect(existing_registration.reload.status).to eq("cancelled")
-        expect(response).to redirect_to(event_registration_path(existing_registration))
+        expect(response).to redirect_to(registration_ticket_path(existing_registration.slug))
         expect(flash[:notice]).to eq("Registration was successfully updated.")
       end
 

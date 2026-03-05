@@ -48,6 +48,29 @@ RSpec.describe "Bookmarks", type: :request do
 
       expect(response).to redirect_to(root_path)
     end
+
+    context "with tutorials" do
+      let(:tutorial) { create(:tutorial, :published) }
+
+      it "cannot create a tutorial bookmark" do
+        expect {
+          post bookmarks_path,
+               params: { bookmark: { bookmarkable_id: tutorial.id,
+                                     bookmarkable_type: "Tutorial" } }
+        }.not_to change(Bookmark, :count)
+
+        expect(response).to redirect_to(root_path)
+      end
+
+      it "cannot destroy a tutorial bookmark" do
+        tutorial_bookmark = create(:bookmark, user: regular_user, bookmarkable: tutorial)
+        expect {
+          delete bookmark_path(tutorial_bookmark)
+        }.not_to change(Bookmark, :count)
+
+        expect(response).to redirect_to(root_path)
+      end
+    end
   end
 
   # ============================================================
@@ -64,6 +87,31 @@ RSpec.describe "Bookmarks", type: :request do
 
     it "can access personal bookmarks" do
       get personal_bookmarks_path
+      expect(response).to have_http_status(:ok)
+    end
+
+    it "includes WorkshopVariationIdea in bookmark type dropdown" do
+      get personal_bookmarks_path
+      expect(response.body).to include("value=\"WorkshopVariationIdea\"")
+    end
+
+    it "does not include Report in bookmark type dropdown" do
+      get personal_bookmarks_path
+      expect(response.body).not_to include("value=\"Report\"")
+    end
+
+    it "includes Video (Tutorial) in bookmark type dropdown" do
+      get personal_bookmarks_path
+      expect(response.body).to include(Tutorial.model_name.human)
+    end
+
+    it "can access personal bookmarks sorted by title" do
+      get personal_bookmarks_path, params: { sort: "title" }
+      expect(response).to have_http_status(:ok)
+    end
+
+    it "can access personal bookmarks with title filter and title sort" do
+      get personal_bookmarks_path, params: { sort: "title", title: "test" }
       expect(response).to have_http_status(:ok)
     end
 
@@ -87,12 +135,39 @@ RSpec.describe "Bookmarks", type: :request do
       }.to change(Bookmark, :count).by(-1)
     end
 
+    it "renders unbookmarked state in turbo_stream after destroy" do
+      delete bookmark_path(bookmark), headers: turbo_headers
+
+      expect(response.body).to include("far fa-bookmark")
+      expect(response.body).not_to include("fas fa-bookmark")
+    end
+
     it "cannot destroy another user's bookmark" do
       expect {
         delete bookmark_path(other_bookmark)
       }.not_to change(Bookmark, :count)
 
       expect(response).to redirect_to(root_path)
+    end
+
+    context "with tutorials" do
+      let(:tutorial) { create(:tutorial, :published) }
+
+      it "can create a tutorial bookmark" do
+        expect {
+          post bookmarks_path,
+               params: { bookmark: { bookmarkable_id: tutorial.id,
+                                     bookmarkable_type: "Tutorial" } },
+               headers: turbo_headers
+        }.to change(Bookmark, :count).by(1)
+      end
+
+      it "can destroy their own tutorial bookmark" do
+        tutorial_bookmark = create(:bookmark, user: regular_user, bookmarkable: tutorial)
+        expect {
+          delete bookmark_path(tutorial_bookmark), headers: turbo_headers
+        }.to change(Bookmark, :count).by(-1)
+      end
     end
   end
 
@@ -108,6 +183,16 @@ RSpec.describe "Bookmarks", type: :request do
       expect(response).to have_http_status(:ok)
     end
 
+    it "can access global index sorted by title" do
+      get bookmarks_path, params: { sort: "title" }
+      expect(response).to have_http_status(:ok)
+    end
+
+    it "can access global index with title filter and title sort" do
+      get bookmarks_path, params: { sort: "title", title: "test" }
+      expect(response).to have_http_status(:ok)
+    end
+
     it "can access personal bookmarks index" do
       get personal_bookmarks_path
       expect(response).to have_http_status(:ok)
@@ -116,6 +201,16 @@ RSpec.describe "Bookmarks", type: :request do
     it "can access tally" do
       get tally_bookmarks_path
       expect(response).to have_http_status(:ok)
+    end
+
+    it "includes WorkshopVariationIdea in bookmark type dropdown" do
+      get bookmarks_path
+      expect(response.body).to include("value=\"WorkshopVariationIdea\"")
+    end
+
+    it "does not include Report in bookmark type dropdown" do
+      get bookmarks_path
+      expect(response.body).not_to include("value=\"Report\"")
     end
 
     it "can create bookmark" do
@@ -130,6 +225,26 @@ RSpec.describe "Bookmarks", type: :request do
       expect {
         delete bookmark_path(other_bookmark)
       }.to change(Bookmark, :count).by(-1)
+    end
+
+    context "with tutorials" do
+      let(:tutorial) { create(:tutorial, :published) }
+
+      it "can create a tutorial bookmark" do
+        expect {
+          post bookmarks_path,
+               params: { bookmark: { bookmarkable_id: tutorial.id,
+                                     bookmarkable_type: "Tutorial" } },
+               headers: turbo_headers
+        }.to change(Bookmark, :count).by(1)
+      end
+
+      it "can destroy any tutorial bookmark" do
+        tutorial_bookmark = create(:bookmark, user: other_user, bookmarkable: tutorial)
+        expect {
+          delete bookmark_path(tutorial_bookmark)
+        }.to change(Bookmark, :count).by(-1)
+      end
     end
   end
 end

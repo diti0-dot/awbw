@@ -63,7 +63,6 @@ RSpec.describe "page_bg_class alignment with policies" do
     "app/views/organizations/populations_served.html.erb" => "admin-or-authpublished",
 
     # ─── admin-or-owner (policy: admin? || owner?) ───
-    "app/views/event_registrations/show.html.erb"      => "admin-or-owner",
     "app/views/quotes/show.html.erb"                   => "admin-or-owner",
     "app/views/story_ideas/show.html.erb"              => "admin-or-owner",
     "app/views/workshop_variation_ideas/show.html.erb" => "admin-or-owner",
@@ -87,6 +86,7 @@ RSpec.describe "page_bg_class alignment with policies" do
     # custom actions
     "app/views/admin/home/index.html.erb"              => "admin-only bg-blue-100",
     "app/views/admin/ahoy_activities/charts.html.erb"  => "admin-only bg-blue-100",
+    "app/views/admin/ahoy_activities/show.html.erb"    => "admin-only bg-blue-100",
     "app/views/admin/ahoy_activities/visits.html.erb"  => "admin-only bg-blue-100",
     "app/views/admin/ahoy_activities/index.html.erb"   => "admin-only bg-blue-100",
     "app/views/admin/analytics/index.html.erb"         => "admin-only bg-blue-100",
@@ -162,9 +162,15 @@ RSpec.describe "page_bg_class alignment with policies" do
     "app/views/workshop_variations/edit.html.erb"      => "admin-only bg-blue-100",
     "app/views/workshops/edit.html.erb"                => "admin-only bg-blue-100",
 
-    # ─── public registration ───
+    # ─── public registration / slug-based views ───
     "app/views/events/public_registrations/new.html.erb"  => "public",
-    "app/views/events/public_registrations/show.html.erb" => "admin-or-owner"
+    "app/views/events/public_registrations/show.html.erb" => "public",
+    "app/views/events/registrations/show.html.erb"        => "public",
+
+    # ─── admin-only confirm/interstitial ───
+    "app/views/event_registrations/confirm.html.erb"     => "admin-only bg-blue-100",
+    "app/views/users/confirm_email_change.html.erb"      => "admin-only bg-blue-100",
+    "app/views/users/confirm_email_manual.html.erb"      => "admin-only bg-blue-100"
   }.freeze
 
   EXPECTED_MAPPINGS.each do |view_path, expected_bg_class|

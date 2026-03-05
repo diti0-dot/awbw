@@ -2,12 +2,18 @@ class EventRegistration < ApplicationRecord
   belongs_to :registrant, class_name: "Person"
   belongs_to :event
   has_many :comments, -> { newest_first }, as: :commentable, dependent: :destroy
+  has_many :event_registration_organizations, dependent: :destroy
   has_many :notifications, as: :noticeable, dependent: :destroy
+  has_many :organizations, through: :event_registration_organizations
   has_many :payments, as: :payable
 
   before_destroy :create_refund_payments
 
   accepts_nested_attributes_for :comments, reject_if: proc { |attrs| attrs["body"].blank? }
+
+  before_create :generate_slug
+  after_create :snapshot_registrant_organizations
+  after_commit :send_cancellation_emails, if: :status_changed_to_cancelled?
 
   ACTIVE_STATUSES = %w[ registered attended incomplete_attendance ].freeze
   INACTIVE_STATUSES = %w[ cancelled no_show ].freeze
@@ -17,6 +23,7 @@ class EventRegistration < ApplicationRecord
   validates :registrant_id, uniqueness: { scope: :event_id }
   validates :event_id, presence: true
   validates :status, inclusion: { in: ATTENDANCE_STATUSES }, allow_nil: false
+  validates :slug, uniqueness: true, allow_nil: true
 
   # Scopes
   scope :registrant_name, ->(registrant_name) { joins(:registrant).where(
@@ -27,6 +34,7 @@ class EventRegistration < ApplicationRecord
   scope :event_title, ->(event_title) { joins(:event).where("LOWER(events.title LIKE ?)", "%#{event_title}%") }
   scope :active, -> { where(status: ACTIVE_STATUSES) }
   scope :attendance_status, ->(status) { where(status: status) }
+  scope :scholarship, -> { where(scholarship_recipient: true) }
   scope :keyword, ->(term) {
     return none if term.blank?
 
@@ -79,10 +87,20 @@ class EventRegistration < ApplicationRecord
     paid_in_full?
   end
 
-  # True if event is free or total successful payments >= event.cost_cents
+  # Sum of successful payment amounts, using preloaded collection when available
+  def successful_payments_total_cents
+    if payments.loaded?
+      payments.select(&:succeeded?).sum(&:amount_cents)
+    else
+      payments.successful.sum(:amount_cents)
+    end
+  end
+
+  # True if event is free, scholarship recipient, or total successful payments >= event.cost_cents
   def paid_in_full?
     return true if event.cost_cents.to_i <= 0
-    payments.successful.sum(:amount_cents) >= event.cost_cents.to_i
+    return true if scholarship_recipient?
+    successful_payments_total_cents >= event.cost_cents.to_i
   end
 
   def scholarship?
@@ -112,6 +130,12 @@ class EventRegistration < ApplicationRecord
 
   private
 
+  def snapshot_registrant_organizations
+    registrant.affiliations.active.includes(:organization).find_each do |aff|
+      event_registration_organizations.create(organization: aff.organization)
+    end
+  end
+
   def create_refund_payments
     paid_cents = payments.successful.sum(:amount_cents)
     return if paid_cents <= 0
@@ -123,6 +147,38 @@ class EventRegistration < ApplicationRecord
       payment_type: "refund",
       status: "refunded",
       currency: "usd"
+    )
+  end
+
+  def generate_slug
+    loop do
+      self.slug = SecureRandom.urlsafe_base64(16)
+      break unless EventRegistration.exists?(slug: slug)
+    end
+  end
+
+  def status_changed_to_cancelled?
+    saved_change_to_status? && status == "cancelled"
+  end
+
+  def send_cancellation_emails
+    email = registrant&.preferred_email
+    return if email.blank?
+
+    NotificationServices::CreateNotification.call(
+      noticeable: self,
+      kind: "event_registration_cancelled",
+      recipient_role: :person,
+      recipient_email: email,
+      notification_type: 1
+    )
+
+    NotificationServices::CreateNotification.call(
+      noticeable: self,
+      kind: "event_registration_cancelled_fyi",
+      recipient_role: :admin,
+      recipient_email: ENV.fetch("REPLY_TO_EMAIL", "programs@awbw.org"),
+      notification_type: 1
     )
   end
 end

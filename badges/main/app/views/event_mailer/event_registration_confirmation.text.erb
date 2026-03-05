@@ -20,10 +20,13 @@ Videoconference URL: <%= @event.videoconference_url %>
   <%= @event.labelled_cost %>
 <% end %>
 
-<% if @event.detail.present? %>
+<% if @event.rhino_description.present? %>
   Event details:
-  <%= @event.detail %>
+  <%= @event.rhino_description.to_plain_text %>
 <% end %>
+
+View your registration:
+<%= registration_ticket_url(@event_registration.slug) %>
 
 View the event page:
 <%= @event_url %>

@@ -5,7 +5,7 @@ class BookmarksController < ApplicationController
     authorize!
     per_page = params[:number_of_items_per_page] || 25
     base_scope = authorized_scope(Bookmark.includes(bookmarkable: [ :primary_asset, :gallery_assets, :windows_type ]))
-    filtered = base_scope.search(params).sorted(params[:sort])
+    filtered = base_scope.search(params)
 
     @bookmarks = filtered.paginate(page: params[:page], per_page: per_page).decorate
     @bookmarks_count = base_scope.length
@@ -26,7 +26,7 @@ class BookmarksController < ApplicationController
     @viewing_self = user == current_user
 
     base_scope = authorized_scope(Bookmark.includes(bookmarkable: [ :primary_asset, :gallery_assets, :windows_type ]))
-    filtered = base_scope.search(params, user: user).sorted(params[:sort])
+    filtered = base_scope.search(params, user: user)
 
     @bookmarks_count = filtered.length
     @bookmarks = filtered.paginate(page: params[:page], per_page: per_page)
@@ -90,6 +90,7 @@ class BookmarksController < ApplicationController
     authorize! @bookmark
     if @bookmark
       @bookmark.destroy
+      current_user.bookmarks.reload
       @bookmarkable = @bookmark.bookmarkable
       respond_to do |format|
         format.html {
@@ -110,7 +111,7 @@ class BookmarksController < ApplicationController
   def set_index_variables
     @sortable_fields = WindowsType.where("name NOT LIKE ?", "%COMBINED%")
     @windows_types_array = WindowsType::TYPES
-    @bookmarkable_types = Bookmark::BOOKMARKABLE_MODELS.map { |type| [ type, type ] }
+    @bookmarkable_types = Bookmark.bookmarkable_type_options
     @workshops = authorized_scope(Workshop.where("led_count > 0")).order(led_count: :desc)
     @users = User.has_access.includes(:person).references(:person).order(Arel.sql("LOWER(people.first_name), LOWER(people.last_name), LOWER(users.email), LOWER(people.email_2), LOWER(people.email)"))
   end

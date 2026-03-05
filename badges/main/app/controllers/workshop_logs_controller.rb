@@ -88,10 +88,14 @@ class WorkshopLogsController < ApplicationController
   end
 
   def show
-    @workshop_log = WorkshopLog.find(params[:id]).decorate
+    @workshop_log = WorkshopLog.includes(
+      :organization, :windows_type, { created_by: :person },
+      { quotes: :workshop },
+      { gallery_assets: { file_attachment: :blob } }
+    ).find(params[:id]).decorate
     authorize! @workshop_log
     @workshop     = @workshop_log.workshop&.decorate
-    @answers      = @workshop_log.report_form_field_answers
+    @answers      = @workshop_log.report_form_field_answers.includes(:form_field)
     @updated_by   = Ahoy::Event.where(resource_type: "WorkshopLog", resource_id: @workshop_log.id)
                                 .where("name LIKE 'update.%'")
                                 .order(time: :desc)
@@ -131,12 +135,12 @@ class WorkshopLogsController < ApplicationController
     end
 
     scoped_users = authorized_scope(User.all, as: :colleagues)
-    @users = scoped_users.or(User.where(id: @workshop_logs_unpaginated.pluck(:created_by_id)))
+    @users = scoped_users.or(User.where(id: @workshop_logs_unpaginated.select(:created_by_id)))
                                 .joins(:person)
                                 .distinct
                                 .select("users.id, users.email, users.person_id, people.first_name, people.last_name")
                                 .order(Arel.sql("LOWER(people.first_name), LOWER(people.last_name), LOWER(users.email), LOWER(people.email_2), LOWER(people.email)"))
-    @organizations = authorized_scope(Organization.all)
+    @organizations = authorized_scope(Organization.all, as: :affiliated).order(:name)
     @workshops = Workshop.where(id: @workshop_logs_unpaginated.select(:workshop_id).distinct)
                          .includes(:windows_type)
                          .order(:title)
@@ -198,10 +202,10 @@ class WorkshopLogsController < ApplicationController
     end
 
     @organizations =
-      Organization.where(id: current_user.organizations.select(:id))
-                   .or(Organization.where(id: @workshop_log.organization_id))
-                   .distinct
-                   .order(:name)
+      authorized_scope(Organization.all, as: :affiliated)
+        .or(Organization.where(id: @workshop_log.organization_id))
+        .distinct
+        .order(:name)
     organization = params[:agency_id].present? ? Organization.where(id: params[:agency_id]).last : @organizations.first
     @organization_id = organization.id if organization
   end

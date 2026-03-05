@@ -1,18 +1,66 @@
 module Events
   class RegistrationsController < ApplicationController
-    before_action :authenticate_user!
-    before_action :set_event
-    before_action :set_registrant
+    before_action :authenticate_user!, only: [ :create, :destroy ]
+    before_action :set_event, only: [ :create, :destroy ]
+    before_action :set_registrant, only: [ :create, :destroy ]
+    before_action :set_event_registration, only: [ :show, :resend_confirmation, :cancel, :reactivate ]
+
+    def show
+      authorize! @event_registration, to: :show_public?
+    end
+
+    def resend_confirmation
+      authorize! @event_registration, to: :show_public?
+      send_registration_notifications(@event_registration)
+      redirect_to registration_ticket_path(@event_registration.slug), notice: "Confirmation email sent."
+    end
+
+    def cancel
+      authorize! @event_registration, to: :show_public?
+
+      if @event_registration.active?
+        @event_registration.update!(status: "cancelled")
+        redirect_to registration_ticket_path(@event_registration.slug), notice: "Your registration has been cancelled."
+      else
+        redirect_to registration_ticket_path(@event_registration.slug), alert: "Registration is already cancelled."
+      end
+    end
+
+    def reactivate
+      authorize! @event_registration, to: :show_public?
+
+      if @event_registration.status == "cancelled"
+        @event_registration.update!(status: "registered")
+        redirect_to registration_ticket_path(@event_registration.slug), notice: "Your registration has been reactivated."
+      else
+        redirect_to registration_ticket_path(@event_registration.slug), alert: "Registration is not cancelled."
+      end
+    end
 
     def create
+      existing = @event.event_registrations.find_by(registrant: @registrant)
+
+      if existing&.status == "cancelled"
+        authorize! existing
+        existing.update!(status: "registered")
+        send_registration_notifications(existing)
+        success = "Your registration has been reactivated."
+        respond_to do |format|
+          format.turbo_stream { flash.now[:notice] = success }
+          format.html { redirect_to registration_ticket_path(existing.slug), notice: success }
+        end
+        return
+      end
+
       @event_registration = @event.event_registrations.new(registrant: @registrant)
       authorize! @event_registration
 
       if @event_registration.save
+        send_registration_notifications(@event_registration)
         success = "You have successfully registered for this event."
         respond_to do |format|
           format.turbo_stream { flash.now[:notice] = success }
-          format.html { redirect_to @event_registration, notice: success }
+          format.html { redirect_to registration_ticket_path(@event_registration.slug), notice: success }
         end
       else
         error = @event_registration.errors.full_messages.to_sentence
@@ -55,6 +103,27 @@ module Events
 
     private
 
+    def send_registration_notifications(event_registration)
+      registrant_email = event_registration.registrant.preferred_email
+      return if registrant_email.blank?
+
+      NotificationServices::CreateNotification.call(
+        noticeable: event_registration,
+        kind: :event_registration_confirmation,
+        recipient_role: :person,
+        recipient_email: registrant_email,
+        notification_type: 0
+      )
+
+      NotificationServices::CreateNotification.call(
+        noticeable: event_registration,
+        kind: :event_registration_confirmation_fyi,
+        recipient_role: :admin,
+        recipient_email: ENV.fetch("REPLY_TO_EMAIL", "programs@awbw.org"),
+        notification_type: 0
+      )
+    end
+
     def set_event
       @event = Event.find(params[:event_id])
     end
@@ -77,6 +146,10 @@ module Events
       )
       current_user.update!(person: person)
       person
+    end
+
+    def set_event_registration
+      @event_registration = EventRegistration.find_by!(slug: params[:slug])
     end
   end
 end

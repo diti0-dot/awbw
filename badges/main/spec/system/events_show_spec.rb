@@ -42,7 +42,10 @@ RSpec.describe "Event show page", type: :system do
     end
 
     context "when event has a public registration form" do
-      before { event.update!(public_registration_enabled: true) }
+      before do
+        create(:form, name: ShortEventRegistrationFormBuilder::FORM_NAME)
+        event.update!(public_registration_enabled: true)
+      end
 
       it "shows register link to public registration" do
         visit event_path(event)
@@ -63,7 +66,7 @@ RSpec.describe "Event show page", type: :system do
     context "when event has public_registration_enabled but no form" do
       before do
         event.update!(public_registration_enabled: true)
-        event.forms.destroy_all
+        event.event_forms.destroy_all
       end
 
       it "does not show a register button" do
@@ -130,8 +133,7 @@ RSpec.describe "Event show page", type: :system do
         visit event_path(event)
 
         expect(page).to have_button("Register")
-        expect(page).not_to have_button("De-register")
-        expect(page).not_to have_text("You are registered!")
+        expect(page).not_to have_text("View your registration")
       end
     end
 
@@ -140,15 +142,15 @@ RSpec.describe "Event show page", type: :system do
         create(:event_registration, event: event, registrant: user.person)
       end
 
-      it "shows deregister button, badge, and calendar links" do
+      it "shows registration link and calendar links" do
         sign_in(user)
         visit event_path(event)
 
-        expect(page).to have_button("De-register")
-        expect(page).to have_text("You are registered!")
+        expect(page).to have_text("View Registration")
         expect(page).to have_text("Add to Your Calendar")
         expect(page).to have_text("Google")
         expect(page).to have_text("Office 365")
+        expect(page).not_to have_button("Register")
       end
     end
 
@@ -178,6 +180,58 @@ RSpec.describe "Event show page", type: :system do
         expect(page).to have_text("Event ended")
         expect(page).not_to have_button("Register")
         expect(page).not_to have_button("De-register")
+      end
+    end
+
+    context "guest with reg slug param" do
+      let!(:registration) { create(:event_registration, event: event, registrant: user.person) }
+
+      it "shows 'View Registration' badge and calendar links" do
+        visit event_path(event, reg: registration.slug)
+
+        expect(page).to have_text("View Registration")
+        expect(page).to have_text("Add to Your Calendar")
+        expect(page).not_to have_button("Register")
+      end
+
+      it "does not show badge with invalid slug" do
+        visit event_path(event, reg: "bogus-slug")
+
+        expect(page).not_to have_text("View your registration")
+      end
+
+      it "does not show badge with slug from a different event" do
+        other_event = create(:event, :published, :publicly_visible)
+        other_registration = create(:event_registration, event: other_event, registrant: user.person)
+
+        visit event_path(event, reg: other_registration.slug)
+
+        expect(page).not_to have_text("View your registration")
+      end
+    end
+
+    context "guest with cancelled registration slug" do
+      let!(:registration) { create(:event_registration, event: event, registrant: user.person, status: "cancelled") }
+
+      it "does not show 'View your registration' link" do
+        visit event_path(event, reg: registration.slug)
+
+        expect(page).not_to have_text("View your registration")
+      end
+
+      it "shows 'Register again' button" do
+        visit event_path(event, reg: registration.slug)
+
+        expect(page).to have_button("Register again")
+      end
+
+      it "does not show 'Register again' when registration is closed" do
+        event.update!(registration_close_date: 1.day.ago)
+
+        visit event_path(event, reg: registration.slug)
+
+        expect(page).not_to have_button("Register again")
+        expect(page).to have_text("Registration closed")
       end
     end
 
@@ -358,40 +412,22 @@ RSpec.describe "Event show page", type: :system do
   describe "registration button updates via Turbo", js: true do
     before { driven_by(:selenium_chrome_headless) }
 
-    it "updates Register to De-register and shows clickable registration link without full page reload" do
+    it "updates Register to show registration link without full page reload" do
       sign_in(user)
       visit event_path(event)
 
       expect(page).to have_button("Register")
-      expect(page).not_to have_text("You are registered!")
+      expect(page).not_to have_text("View Registration")
 
       click_button "Register"
 
       # Turbo stream replaces the registration section; we stay on the event page
       expect(page).to have_current_path(event_path(event))
-      expect(page).to have_button("De-register")
       expect(page).not_to have_button("Register")
 
-      # "You are registered!" is a clickable link to the registration show page
+      # "View Registration" is a clickable link to the registration show page
       registration = EventRegistration.last
-      expect(page).to have_link("You are registered!", href: event_registration_path(registration))
-    end
-
-    it "updates De-register back to Register after de-registering" do
-      create(:event_registration, event: event, registrant: user.person)
-
-      sign_in(user)
-      visit event_path(event)
-
-      expect(page).to have_button("De-register")
-      accept_confirm do
-        click_button "De-register"
-      end
-
-      expect(page).to have_current_path(event_path(event))
-      expect(page).to have_button("Register")
-      expect(page).not_to have_button("De-register")
-      expect(page).not_to have_text("You are registered!")
+      expect(page).to have_link("View Registration", href: registration_ticket_path(registration.slug))
     end
   end
 

@@ -1,38 +1,58 @@
 class UsersController < ApplicationController
   before_action :set_user, only: [ :show, :edit, :update, :destroy,
                                    :toggle_lock_status, :confirm_email,
-                                   :send_welcome_instructions, :send_reset_password_instructions ]
+                                   :send_welcome_instructions, :send_reset_password_instructions,
+                                   :confirm_email_change, :process_email_change,
+                                   :confirm_email_manual, :process_email_manual ]
 
   def index
     authorize!
-    per_page = params[:number_of_items_per_page].presence || 25
-    base_scope = authorized_scope(User.includes(:created_by, :updated_by,
-                                                person: { avatar_attachment: :blob }))
-    filtered = base_scope.search_by_params(params).order(:first_name, :last_name)
-    @users_count = filtered.count
-    @users = filtered.paginate(page: params[:page], per_page: per_page)
+
+    if turbo_frame_request?
+      per_page = params[:number_of_items_per_page].presence || 25
+      base_scope = authorized_scope(User.includes(:created_by, :updated_by,
+                                                  person: { avatar_attachment: :blob }))
+      filtered = base_scope.search_by_params(params).order(:first_name, :last_name)
+      @users_count = filtered.count
+      @users = filtered.paginate(page: params[:page], per_page: per_page)
+
+      render :users_results
+    else
+      render :index
+    end
   end
 
   def show
     authorize! @user
     @user = User.find(params[:id]).decorate
+
+    if turbo_frame_request? && params[:section] == "account_activity"
+      @account_events = account_events_for(@user, search: params[:search], by_user_id: params[:by_user_id])
+                          .paginate(page: params[:page], per_page: 10)
+      by_user_options = account_event_user_options(@user)
+      render partial: "users/sections/account_activity",
+             locals: { user: @user, account_events: @account_events, by_user_options: by_user_options }
+      return
+    end
+
     @comments = @user.comments.includes(:created_by).newest_first.paginate(page: params[:comments_page], per_page: 5)
 
-    user_auth_events = Ahoy::Event
-      .where("name LIKE 'auth.%' OR name LIKE 'update.user'")
-      .where(
-        "(CAST(JSON_EXTRACT(properties, '$.record_id') AS UNSIGNED) = :id AND JSON_UNQUOTE(JSON_EXTRACT(properties, '$.record_type')) = 'User') OR " \
-        "(CAST(JSON_EXTRACT(properties, '$.resource_id') AS UNSIGNED) = :id AND JSON_UNQUOTE(JSON_EXTRACT(properties, '$.resource_type')) = 'User')",
-        id: @user.id
-      )
-
+    user_auth_events = user_auth_events_base(@user)
     @last_admin_event = user_auth_events.where(name: %w[auth.admin_granted auth.admin_revoked]).order(time: :desc).first
     @last_lock_event = user_auth_events.where(name: %w[auth.account_locked auth.account_unlocked]).order(time: :desc).first
 
-    @account_events = user_auth_events
-      .includes(:user)
-      .order(time: :desc)
-      .paginate(page: params[:page], per_page: 10)
+    # Fall back to ahoy events for created_by/updated_by if not set on the model
+    unless @user.created_by
+      create_event = Ahoy::Event.where(name: "create.user", resource_type: "User", resource_id: @user.id)
+                                .order(time: :asc).first
+      @created_by_fallback = create_event&.user
+    end
+
+    unless @user.updated_by
+      update_event = Ahoy::Event.where(name: "update.user", resource_type: "User", resource_id: @user.id)
+                                .order(time: :desc).first
+      @updated_by_fallback = update_event&.user
+    end
   end
 
   def new
@@ -108,11 +128,18 @@ class UsersController < ApplicationController
     @user.comments.select(&:new_record?).each { |c| c.created_by = current_user; c.updated_by = current_user }
     @user.comments.select(&:changed?).each { |c| c.updated_by = current_user }
 
+    # Suppress Devise's automatic reconfirmation email so the interstitial can control it
+    @user.skip_confirmation_notification!
+
     if @user.save
       bypass_sign_in(@user) if @user == current_user
-      notice = "User was successfully updated."
-      notice += " A confirmation email has been sent to #{@user.unconfirmed_email}." if @user.unconfirmed_email.present? && @user.saved_change_to_unconfirmed_email?
-      redirect_to @user, notice: notice
+
+      if current_user.super_user? && @user.saved_change_to_unconfirmed_email? && @user.unconfirmed_email.present?
+        redirect_to confirm_email_change_user_path(@user)
+        return
+      end
+
+      redirect_to @user, notice: "User was successfully updated."
     else
       flash[:alert] = "Unable to update user."
       set_form_variables
@@ -124,6 +151,8 @@ class UsersController < ApplicationController
     authorize! @user
     @user.destroy!
     redirect_to users_path, notice: "User was successfully destroyed."
+  rescue ActiveRecord::InvalidForeignKey
+    redirect_to @user, alert: "Unable to delete this user because they have associated records that cannot be removed."
   end
 
   # ---------------------------------------------------------
@@ -214,6 +243,46 @@ class UsersController < ApplicationController
   end
 
   # ---------------------------------------------------------
+  # EMAIL CHANGE INTERSTITIAL
+  # ---------------------------------------------------------
+
+  def confirm_email_change
+    authorize! @user, to: :confirm_email_change?
+  end
+
+  def process_email_change
+    authorize! @user, to: :process_email_change?
+
+    result = UserServices::ProcessEmailChange.call(
+      user: @user,
+      send_confirmation: params[:send_confirmation] == "1",
+      current_user: current_user
+    )
+
+    redirect_to @user, notice: result.summary
+  end
+
+  # ---------------------------------------------------------
+  # MANUAL EMAIL CONFIRMATION INTERSTITIAL
+  # ---------------------------------------------------------
+
+  def confirm_email_manual
+    authorize! @user, to: :confirm_email_manual?
+  end
+
+  def process_email_manual
+    authorize! @user, to: :process_email_manual?
+
+    result = UserServices::ProcessEmailManualConfirm.call(
+      user: @user,
+      action: params[:confirm_action],
+      current_user: current_user
+    )
+
+    redirect_to @user, notice: result.summary
+  end
+
+  # ---------------------------------------------------------
   # SEND INVITATION
   # ---------------------------------------------------------
   def send_welcome_instructions
@@ -250,6 +319,32 @@ class UsersController < ApplicationController
     @user.person.affiliations.first || @user.person.affiliations.build if @user.person
     organizations = authorized_scope(Organization.all)
     @organizations_array = organizations.order(:name).pluck(:name, :id)
+  end
+
+  def user_auth_events_base(user)
+    Ahoy::Event
+      .where("name LIKE 'auth.%' OR name LIKE 'update.user'")
+      .where(
+        "(CAST(JSON_EXTRACT(properties, '$.record_id') AS UNSIGNED) = :id AND JSON_UNQUOTE(JSON_EXTRACT(properties, '$.record_type')) = 'User') OR " \
+        "(CAST(JSON_EXTRACT(properties, '$.resource_id') AS UNSIGNED) = :id AND JSON_UNQUOTE(JSON_EXTRACT(properties, '$.resource_type')) = 'User')",
+        id: user.id
+      )
+  end
+
+  def account_events_for(user, search: nil, by_user_id: nil)
+    scope = user_auth_events_base(user).includes(:user).order(time: :desc)
+    if search.present?
+      q = "%#{search}%"
+      scope = scope.where("ahoy_events.name LIKE :q OR CAST(ahoy_events.properties AS CHAR) LIKE :q", q: q)
+    end
+    scope = scope.where(user_id: by_user_id) if by_user_id.present?
+    scope
+  end
+
+  def account_event_user_options(user)
+    User.where(super_user: true).or(User.where(id: user.id))
+        .order(:first_name, :last_name)
+        .map { |u| [ u.name, u.id ] }
   end
 
   def password_param

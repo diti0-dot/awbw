@@ -39,7 +39,7 @@ class EventsController < ApplicationController
     authorize! @event, to: :manage?
     @event = @event.decorate
     scope = @event.event_registrations
-      .includes(:payments, :comments, registrant: [ { affiliations: :organization }, :contact_methods ])
+      .includes(:payments, :comments, :organizations, registrant: [ :user, :contact_methods, { avatar_attachment: :blob } ])
       .joins(:registrant)
     scope = scope.keyword(params[:keyword]) if params[:keyword].present?
     scope = scope.attendance_status(params[:attendance_status]) if params[:attendance_status].present?
@@ -69,12 +69,13 @@ class EventsController < ApplicationController
     Event.transaction do
       if @event.save
         assign_associations(@event)
+        assign_event_forms(@event)
         if params.dig(:library_asset, :new_assets).present?
           update_asset_owner(@event)
         end
         success = true
       end
-    rescue ActiveRecord::RecordInvalid, ActiveRecord::RecordNotSaved => e
+    rescue ActiveRecord::RecordInvalid, ActiveRecord::RecordNotSaved, ActiveRecord::RecordNotUnique => e
       Rails.logger.error "Event create failed: #{e.class} - #{e.message}"
       raise ActiveRecord::Rollback
     end
@@ -96,11 +97,15 @@ class EventsController < ApplicationController
     success = false
 
     Event.transaction do
+      assign_event_forms(@event)
+      @event.event_forms.reset
       if @event.update(event_params)
         assign_associations(@event)
         success = true
+      else
+        raise ActiveRecord::Rollback
       end
-    rescue ActiveRecord::RecordInvalid, ActiveRecord::RecordNotSaved => e
+    rescue ActiveRecord::RecordInvalid, ActiveRecord::RecordNotSaved, ActiveRecord::RecordNotUnique => e
       Rails.logger.error "Event update failed: #{e.class} - #{e.message}"
       raise ActiveRecord::Rollback
     end
@@ -131,11 +136,11 @@ class EventsController < ApplicationController
     authorize! @event, to: :manage?
 
     source_event = Event.find(params[:source_event_id])
-    source_form = source_event.forms.find_by(name: EventRegistrationFormBuilder::FORM_NAME)
+    source_form = source_event.registration_form
 
     if source_form
-      EventRegistrationFormBuilder.copy!(from_form: source_form, to_event: @event)
-      redirect_to edit_event_path(@event), notice: "Registration form copied successfully."
+      @event.event_forms.find_or_create_by!(form: source_form, role: "registration")
+      redirect_to edit_event_path(@event), notice: "Registration form linked successfully."
     else
       redirect_to edit_event_path(@event), alert: "Source event has no registration form."
     end
@@ -146,7 +151,7 @@ class EventsController < ApplicationController
   def event_registrations_csv_string
     require "csv"
     cost_required = @event.cost_cents.to_i > 0
-    headers = [ "First name", "Last name", "Email", "Phone", "Organization", "Payment status", "Payment total" ]
+    headers = [ "First name", "Last name", "Email", "Phone", "Organization", "Scholarship recipient", "Scholarship tasks completed", "Payment status", "Payment total" ]
     CSV.generate(headers: headers, write_headers: true) do |csv_out|
       @event_registrations.each do |registration|
         csv_out << event_registration_csv_row(registration, cost_required)
@@ -160,7 +165,7 @@ class EventsController < ApplicationController
       .select { |a| !a.inactive? && (a.end_date.nil? || a.end_date >= Date.current) }
       .map(&:organization).compact.uniq
     org_names = orgs.map(&:name).join("; ")
-    total_cents = registration.payments.successful.sum(:amount_cents)
+    total_cents = registration.successful_payments_total_cents
     payment_total = total_cents.positive? ? format("%.2f", total_cents / 100.0) : ""
     payment_status = cost_required ? (registration.paid_in_full? ? "Paid in full" : "Not paid in full") : ""
     [
@@ -169,9 +174,37 @@ class EventsController < ApplicationController
       person.preferred_email.presence || "",
       person.phone_number.presence || "",
       org_names.presence || "",
+      registration.scholarship_recipient? ? "Yes" : "No",
+      registration.scholarship_tasks_completed? ? "Yes" : "No",
       payment_status,
       payment_total
     ]
+  end
+
+  def assign_event_forms(event)
+    form_id = params.dig(:event, :registration_form_id)
+    return unless form_id
+
+    if form_id.blank?
+      event.event_forms.registration.destroy_all
+    else
+      form = Form.standalone.find_by(id: form_id)
+      return unless form
+
+      existing = event.event_forms.registration.first
+      if existing
+        existing.update!(form: form) unless existing.form_id == form.id.to_i
+      else
+        event.event_forms.create!(form: form, role: "registration")
+      end
+    end
+
+    scholarship_form = Form.standalone.find_by(name: ScholarshipApplicationFormBuilder::FORM_NAME)
+    if scholarship_form && event.cost_cents.to_i > 0
+      event.event_forms.find_or_create_by!(form: scholarship_form, role: "scholarship")
+    elsif event.cost_cents.to_i == 0
+      event.event_forms.scholarship.destroy_all
+    end
   end
 
   def set_form_variables
@@ -179,6 +212,7 @@ class EventsController < ApplicationController
     @event.build_primary_asset if @event.primary_asset.blank?
     @event.gallery_assets.build
     @locations = Location.order(:city, :state)
+    @registration_forms = Form.standalone.where(scholarship_application: false).order(:name)
     @categories_grouped =
       Category
         .includes(:category_type)

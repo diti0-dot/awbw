@@ -15,12 +15,10 @@ class User < ApplicationRecord
   after_update :sync_email_to_person
   after_update :track_lock_change
   after_update :track_admin_change
-  after_update :track_name_change
   after_update :track_inactive_change
   after_update :track_password_reset_sent
 
   before_destroy :track_account_deleted
-  before_destroy :reassign_reports_and_logs_to_orphaned_user
 
   # Associations
   belongs_to :person, optional: true
@@ -48,6 +46,7 @@ class User < ApplicationRecord
   has_many :bookmarked_workshops, through: :bookmarks, source: :bookmarkable, source_type: "Workshop"
   has_many :bookmarked_resources, through: :bookmarks, source: :bookmarkable, source_type: "Resource"
   has_many :bookmarked_events, through: :bookmarks, source: :bookmarkable, source_type: "Event"
+  has_many :bookmarked_tutorials, through: :bookmarks, source: :bookmarkable, source_type: "Tutorial"
 
   has_many :events, through: :event_registrations
   has_many :organizations, through: :person
@@ -172,6 +171,18 @@ class User < ApplicationRecord
     end
   end
 
+  def deletable?
+    !reports.exists? &&
+      !workshop_logs.exists? &&
+      !resources.exists? &&
+      !workshops.exists? &&
+      !stories_as_creator.exists? &&
+      !story_ideas_as_creator.exists? &&
+      !workshop_ideas_as_creator.exists? &&
+      !workshop_variations_as_creator.exists? &&
+      !workshop_variation_ideas_creator.exists?
+  end
+
   def name
     person ? person.name : email
   end
@@ -244,16 +255,6 @@ class User < ApplicationRecord
     errors.add(:person_id, "cannot be removed once set")
   end
 
-  def reassign_reports_and_logs_to_orphaned_user
-    orphaned_user = User.find_by(email: "orphaned_reports@awbw.org")
-    return unless orphaned_user
-
-    # Reassign reports
-    reports.update_all(created_by_id: orphaned_user.id)
-
-    # Reassign workshop_logs
-    workshop_logs.update_all(created_by_id: orphaned_user.id)
-  end
 
   def after_confirmation
     super
@@ -324,22 +325,6 @@ class User < ApplicationRecord
 
   def track_welcome_completion
     track_auth_event("auth.account_setup_completed")
-  end
-
-  def track_name_change
-    return unless saved_change_to_first_name? || saved_change_to_last_name?
-    props = {}
-    if saved_change_to_first_name?
-      from, to = saved_change_to_first_name
-      props[:first_name_from] = from
-      props[:first_name_to] = to
-    end
-    if saved_change_to_last_name?
-      from, to = saved_change_to_last_name
-      props[:last_name_from] = from
-      props[:last_name_to] = to
-    end
-    track_auth_event("auth.name_changed", props)
   end
 
   def track_inactive_change

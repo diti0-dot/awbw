@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_02_28_000006) do
+ActiveRecord::Schema[8.1].define(version: 2026_03_02_150000) do
   create_table "action_text_mentions", charset: "utf8mb4", collation: "utf8mb4_unicode_ci", force: :cascade do |t|
     t.bigint "action_text_rich_text_id", null: false
     t.datetime "created_at", null: false
@@ -397,16 +397,41 @@ ActiveRecord::Schema[8.1].define(version: 2026_02_28_000006) do
     t.index ["contactable_type", "contactable_id"], name: "index_contact_methods_on_contactable"
   end
 
+  create_table "event_forms", charset: "utf8mb4", collation: "utf8mb4_unicode_ci", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.bigint "event_id", null: false
+    t.integer "form_id", null: false
+    t.string "role", null: false
+    t.datetime "updated_at", null: false
+    t.index ["event_id", "form_id", "role"], name: "index_event_forms_on_event_id_and_form_id_and_role", unique: true
+    t.index ["event_id"], name: "index_event_forms_on_event_id"
+    t.index ["form_id"], name: "index_event_forms_on_form_id"
+  end
+
+  create_table "event_registration_organizations", charset: "utf8mb4", collation: "utf8mb4_unicode_ci", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.bigint "event_registration_id", null: false
+    t.integer "organization_id", null: false
+    t.datetime "updated_at", null: false
+    t.index ["event_registration_id", "organization_id"], name: "idx_event_reg_orgs_on_registration_and_org", unique: true
+    t.index ["event_registration_id"], name: "idx_on_event_registration_id_806bdcd019"
+    t.index ["organization_id"], name: "index_event_registration_organizations_on_organization_id"
+  end
+
   create_table "event_registrations", charset: "utf8mb4", collation: "utf8mb4_unicode_ci", force: :cascade do |t|
     t.datetime "created_at", null: false
     t.bigint "event_id"
     t.bigint "registrant_id", null: false
+    t.boolean "scholarship_recipient", default: false, null: false
+    t.boolean "scholarship_requested", default: false, null: false
     t.boolean "scholarship_tasks_completed", default: false, null: false
+    t.string "slug"
     t.string "status", default: "registered", null: false
     t.datetime "updated_at", null: false
     t.index ["event_id"], name: "index_event_registrations_on_event_id"
     t.index ["registrant_id", "event_id"], name: "index_event_registrations_on_registrant_id_and_event_id", unique: true
     t.index ["registrant_id"], name: "index_event_registrations_on_registrant_id"
+    t.index ["slug"], name: "index_event_registrations_on_slug", unique: true
   end
 
   create_table "events", charset: "utf8mb4", collation: "utf8mb4_unicode_ci", force: :cascade do |t|
@@ -509,8 +534,9 @@ ActiveRecord::Schema[8.1].define(version: 2026_02_28_000006) do
     t.datetime "created_at", precision: nil, null: false
     t.integer "form_builder_id"
     t.string "name"
-    t.integer "owner_id", null: false
-    t.string "owner_type", null: false
+    t.integer "owner_id"
+    t.string "owner_type"
+    t.boolean "scholarship_application", default: false, null: false
     t.datetime "updated_at", precision: nil, null: false
     t.index ["form_builder_id"], name: "index_forms_on_form_builder_id"
     t.index ["owner_type", "owner_id"], name: "index_forms_on_owner_type_and_owner_id"
@@ -578,6 +604,9 @@ ActiveRecord::Schema[8.1].define(version: 2026_02_28_000006) do
     t.text "email_body_html"
     t.text "email_body_text"
     t.text "email_subject"
+    t.datetime "error_at"
+    t.string "error_class"
+    t.text "error_message"
     t.string "kind", null: false
     t.integer "noticeable_id"
     t.string "noticeable_type"
@@ -804,12 +833,13 @@ ActiveRecord::Schema[8.1].define(version: 2026_02_28_000006) do
     t.string "type"
     t.datetime "updated_at", precision: nil, null: false
     t.integer "windows_type_id", null: false
-    t.integer "workshop_id", null: false
+    t.integer "workshop_id"
     t.string "workshop_name"
     t.index ["created_by_id"], name: "index_reports_on_created_by_id"
     t.index ["organization_id"], name: "index_reports_on_organization_id"
     t.index ["owner_type", "owner_id"], name: "index_reports_on_owner_type_and_owner_id"
     t.index ["type", "date"], name: "index_reports_on_type_and_date"
+    t.index ["type", "organization_id"], name: "index_reports_on_type_and_organization_id"
     t.index ["windows_type_id"], name: "index_reports_on_windows_type_id"
     t.index ["workshop_id"], name: "index_reports_on_workshop_id"
   end
@@ -1323,6 +1353,10 @@ ActiveRecord::Schema[8.1].define(version: 2026_02_28_000006) do
   add_foreign_key "community_news", "users", column: "updated_by_id"
   add_foreign_key "community_news", "windows_types"
   add_foreign_key "contact_methods", "addresses"
+  add_foreign_key "event_forms", "events"
+  add_foreign_key "event_forms", "forms"
+  add_foreign_key "event_registration_organizations", "event_registrations"
+  add_foreign_key "event_registration_organizations", "organizations"
   add_foreign_key "event_registrations", "events"
   add_foreign_key "event_registrations", "people", column: "registrant_id"
   add_foreign_key "events", "locations"

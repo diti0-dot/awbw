@@ -541,7 +541,8 @@ end
 puts "Creating Persons and Affiliations for seed users…"
 [
   User.find_by(email: "umberto.user@example.com"),
-  User.find_by(email: "amy.user@example.com")
+  User.find_by(email: "amy.user@example.com"),
+  User.find_by(email: "priya.user@example.com")
 ].compact.each do |user|
   next if user.person.present?
 
@@ -564,6 +565,147 @@ puts "Creating Persons and Affiliations for seed users…"
     position: :leader,
     start_date: 1.year.ago.to_date
   )
+end
+
+puts "Creating People…"
+admin_user = User.find_by(email: "umberto.user@example.com")
+orgs = Organization.all.to_a
+
+test_people = [
+  # --- Johnson cluster (8 people, similar last names) ---
+  { first_name: "Maria", last_name: "Johnson", email: "maria.johnson@gmail.com", email_2: nil, searchable: true, with_user: true, affiliations: 2 },
+  { first_name: "Maria", last_name: "Johnston", email: "maria.johnston@yahoo.com", email_2: "mj@work.org", searchable: true, with_user: true, affiliations: 1 },
+  { first_name: "Marie", last_name: "Johnson", email: "marie.j@outlook.com", email_2: nil, searchable: true, with_user: true, affiliations: 0 },
+  { first_name: "Mario", last_name: "Johnson", email: nil, email_2: nil, searchable: true, with_user: false, affiliations: 1 },
+  { first_name: "Mark", last_name: "Johnson", email: "mark.johnson@hotmail.com", email_2: nil, searchable: false, with_user: true, affiliations: 1 },
+  { first_name: "Mary", last_name: "Johnson", email: nil, email_2: "mary.j@backup.org", searchable: true, with_user: false, affiliations: 0 },
+  { first_name: "Mariana", last_name: "Johnson", email: "mariana@johnson.com", email_2: nil, searchable: true, with_user: true, affiliations: 3 },
+  { first_name: "Marcus", last_name: "Johnstone", email: "marcus.j@example.com", email_2: nil, searchable: true, with_user: false, affiliations: 1 },
+
+  # --- Garcia cluster (7 people) ---
+  { first_name: "Ana", last_name: "Garcia", email: "ana.garcia@gmail.com", email_2: nil, searchable: true, with_user: true, affiliations: 1 },
+  { first_name: "Anna", last_name: "Garcia", email: "anna.garcia@yahoo.com", email_2: nil, searchable: true, with_user: true, affiliations: 2 },
+  { first_name: "Ana Maria", last_name: "Garcia", email: nil, email_2: "anamaria@personal.net", searchable: true, with_user: false, affiliations: 0 },
+  { first_name: "Andrea", last_name: "Garcia", email: "andrea.g@outlook.com", email_2: nil, searchable: false, with_user: true, affiliations: 1 },
+  { first_name: "Angel", last_name: "Garcia", email: nil, email_2: nil, searchable: true, with_user: false, affiliations: 1 },
+  { first_name: "Ana", last_name: "Garcia-Lopez", email: "ana.gl@work.org", email_2: nil, searchable: true, with_user: true, affiliations: 1 },
+  { first_name: "Antonio", last_name: "Garcia", email: "antonio.garcia@gmail.com", email_2: "tony.g@backup.com", searchable: true, with_user: false, affiliations: 0 },
+
+  # --- Smith cluster (7 people) ---
+  { first_name: "Sarah", last_name: "Smith", email: "sarah.smith@gmail.com", email_2: nil, searchable: true, with_user: true, affiliations: 1 },
+  { first_name: "Sara", last_name: "Smith", email: "sara.smith@yahoo.com", email_2: nil, searchable: true, with_user: true, affiliations: 0 },
+  { first_name: "Samuel", last_name: "Smith", email: nil, email_2: "sam.smith@backup.org", searchable: true, with_user: false, affiliations: 2 },
+  { first_name: "Sandra", last_name: "Smith", email: "sandra.s@outlook.com", email_2: nil, searchable: false, with_user: true, affiliations: 1 },
+  { first_name: "Sarah", last_name: "Smithson", email: "sarah.smithson@gmail.com", email_2: nil, searchable: true, with_user: true, affiliations: 1 },
+  { first_name: "Sarah Jane", last_name: "Smith", email: nil, email_2: nil, searchable: true, with_user: false, affiliations: 1 },
+  { first_name: "Santiago", last_name: "Smith", email: "santiago.smith@hotmail.com", email_2: "santi@alt.org", searchable: true, with_user: true, affiliations: 0 },
+
+  # --- Williams cluster (6 people) ---
+  { first_name: "Lisa", last_name: "Williams", email: "lisa.williams@gmail.com", email_2: nil, searchable: true, with_user: true, affiliations: 1 },
+  { first_name: "Lisa", last_name: "Williamson", email: "lisa.williamson@yahoo.com", email_2: nil, searchable: true, with_user: true, affiliations: 2 },
+  { first_name: "Linda", last_name: "Williams", email: nil, email_2: "linda.w@backup.com", searchable: true, with_user: false, affiliations: 0 },
+  { first_name: "Luis", last_name: "Williams", email: "luis.w@outlook.com", email_2: nil, searchable: false, with_user: false, affiliations: 1 },
+  { first_name: "Lily", last_name: "Williams", email: "lily.williams@hotmail.com", email_2: nil, searchable: true, with_user: true, affiliations: 1 },
+  { first_name: "Lisa Marie", last_name: "Williams", email: nil, email_2: nil, searchable: true, with_user: false, affiliations: 0 },
+
+  # --- Brown cluster (6 people) ---
+  { first_name: "Jessica", last_name: "Brown", email: "jessica.brown@gmail.com", email_2: nil, searchable: true, with_user: true, affiliations: 2 },
+  { first_name: "Jennifer", last_name: "Brown", email: "jennifer.b@yahoo.com", email_2: "jen.brown@alt.org", searchable: true, with_user: true, affiliations: 1 },
+  { first_name: "Jessica", last_name: "Browning", email: nil, email_2: nil, searchable: true, with_user: false, affiliations: 1 },
+  { first_name: "Jesse", last_name: "Brown", email: "jesse.brown@outlook.com", email_2: nil, searchable: false, with_user: true, affiliations: 0 },
+  { first_name: "Jenna", last_name: "Brown", email: nil, email_2: "jenna.b@backup.net", searchable: true, with_user: false, affiliations: 1 },
+  { first_name: "Jean", last_name: "Brown", email: "jean.brown@hotmail.com", email_2: nil, searchable: true, with_user: true, affiliations: 0 },
+
+  # --- Davis cluster (5 people) ---
+  { first_name: "Kim", last_name: "Davis", email: "kim.davis@gmail.com", email_2: nil, searchable: true, with_user: true, affiliations: 1 },
+  { first_name: "Kimberly", last_name: "Davis", email: "kimberly.d@yahoo.com", email_2: nil, searchable: true, with_user: true, affiliations: 0 },
+  { first_name: "Kim", last_name: "Davidson", email: nil, email_2: "kim.dav@backup.org", searchable: true, with_user: false, affiliations: 2 },
+  { first_name: "Karen", last_name: "Davis", email: "karen.davis@outlook.com", email_2: nil, searchable: false, with_user: true, affiliations: 1 },
+  { first_name: "Katherine", last_name: "Davis", email: nil, email_2: nil, searchable: true, with_user: false, affiliations: 1 },
+
+  # --- De La Cruz cluster (5 people, spaces in last name) ---
+  { first_name: "Rosa", last_name: "De La Cruz", email: "rosa.dlc@gmail.com", email_2: nil, searchable: true, with_user: true, affiliations: 1 },
+  { first_name: "Rosalia", last_name: "De La Cruz", email: nil, email_2: "rosalia@backup.net", searchable: true, with_user: false, affiliations: 0 },
+  { first_name: "Rosa Maria", last_name: "De La Cruz", email: "rosamaria.dlc@yahoo.com", email_2: nil, searchable: true, with_user: true, affiliations: 2 },
+  { first_name: "Roberto", last_name: "De La Cruz", email: nil, email_2: nil, searchable: false, with_user: false, affiliations: 1 },
+  { first_name: "Rosario", last_name: "De La Cruz-Santos", email: "rosario.dlcs@outlook.com", email_2: nil, searchable: true, with_user: true, affiliations: 1 },
+
+  # --- Mixed singles (6 people, similar first names across families) ---
+  { first_name: "Maria", last_name: "De La Cruz", email: "maria.dlc@hotmail.com", email_2: nil, searchable: true, with_user: true, affiliations: 1 },
+  { first_name: "Maria", last_name: "Smith", email: nil, email_2: "maria.smith@backup.org", searchable: true, with_user: false, affiliations: 0 },
+  { first_name: "Maria", last_name: "Williams", email: "maria.w@gmail.com", email_2: nil, searchable: true, with_user: true, affiliations: 1 },
+  { first_name: "Sarah", last_name: "Garcia", email: "sarah.garcia@yahoo.com", email_2: nil, searchable: true, with_user: true, affiliations: 0 },
+  { first_name: "Sarah", last_name: "Brown", email: nil, email_2: nil, searchable: true, with_user: false, affiliations: 1 },
+  { first_name: "Sarah", last_name: "Davis", email: "sarah.davis@outlook.com", email_2: "sd@alt.com", searchable: true, with_user: true, affiliations: 2 }
+]
+
+test_people.each do |data|
+  next if Person.where(
+    "LOWER(first_name) = ? AND LOWER(last_name) = ? AND LOWER(COALESCE(email, '')) = ?",
+    data[:first_name].downcase,
+    data[:last_name].downcase,
+    (data[:email] || "").downcase
+  ).exists?
+
+  person_attrs = {
+    first_name: data[:first_name],
+    last_name: data[:last_name],
+    email: data[:email],
+    email_2: data[:email_2],
+    profile_is_searchable: data[:searchable],
+    created_by: admin_user,
+    updated_by: admin_user
+  }
+
+  if data[:with_user]
+    user_email = data[:email] || "#{data[:first_name].downcase.gsub(' ', '')}.#{data[:last_name].downcase.gsub(' ', '')}@example.com"
+    user = User.where(email: user_email).first_or_create!(
+      email: user_email,
+      first_name: data[:first_name],
+      last_name: data[:last_name],
+      password: "password",
+      password_confirmation: "password",
+      confirmed_at: Time.current
+    )
+
+    unless user.person.present?
+      person = Person.create!(person_attrs)
+      user.update!(person: person)
+    end
+  else
+    Person.create!(person_attrs)
+  end
+end
+
+# Create affiliations for test people
+Person.where(
+  "LOWER(last_name) IN (?)",
+  %w[johnson johnston johnstone garcia garcia-lopez smith smithson williams williamson brown browning davis davidson cruz cruz-santos]
+).find_each do |person|
+  match = test_people.find { |d| d[:first_name] == person.first_name && d[:last_name] == person.last_name }
+  next unless match
+  next if match[:affiliations].zero?
+  next if person.affiliations.count >= match[:affiliations]
+
+  needed = match[:affiliations] - person.affiliations.count
+  needed.times do
+    org = orgs.sample
+    next unless org
+    next if person.affiliations.exists?(organization: org)
+
+    title = [
+      "Facilitator", "Lead Facilitator", "Co-Facilitator",
+      "Assistant Facilitator", "Volunteer", "Board Member"
+    ].sample
+    Affiliation.create!(
+      person: person,
+      organization: org,
+      title: title,
+      position: [ :default, :liaison, :leader, :assistant ].sample,
+      start_date: rand(1..5).years.ago.to_date,
+      inactive: [ false, false, false, true ].sample
+    )
+  end
 end
 
 puts "Creating CommunityNews…"
@@ -604,7 +746,7 @@ puts "Creating CommunityNews…"
                 )
 end
 
-puts "Creating new StoryIdeas…"
+puts "Creating StoryIdeas…"
 10.times do |i|
   body_content = Faker::Lorem.paragraph(sentence_count: 10)
   StoryIdea.create!(
@@ -733,50 +875,326 @@ puts "Creating Stories…"
 end
 
 
-puts "Creating Events…"
-[
-  "Healing Through Art: Spring Community Gathering",
-  "Facilitator Training: Trauma-Informed Art Practices",
-  "Youth Creativity Day",
-  "Mindful Art for Survivors Workshop",
-  "Community Open Studio Night",
-  "Annual Celebration of Voices",
-  "Art as Healing: Virtual Group Session",
-  "Leaders in Creativity: Facilitator Roundtable",
-  "Family Creative Expression Day",
-  "Creative Safety & Support Workshop"
-].each_with_index do |title, i|
-  start_date = Time.current + rand(5..60).days
-  end_date   = start_date + rand(1..3).hours
-  registration_close = start_date - rand(2..10).days
+puts "Creating Events with shared forms…"
+admin_user = User.find_by(email: "umberto.user@example.com")
+long_form = Form.standalone.find_by!(name: ExtendedEventRegistrationFormBuilder::FORM_NAME)
+short_form = Form.standalone.find_by!(name: ShortEventRegistrationFormBuilder::FORM_NAME)
+scholarship_form = Form.standalone.find_by!(name: ScholarshipApplicationFormBuilder::FORM_NAME)
 
-  visibility = if i < 3
-    { published: true, featured: true }
-  elsif i < 6
-    { published: true, publicly_visible: true, publicly_featured: true }
-  else
-    { published: [ true, true, false ].sample, featured: [ true, false ].sample,
-      publicly_visible: [ true, false ].sample, publicly_featured: [ true, false ].sample }
-  end
+# Each entry: [title, form_type, cost_cents, scholarship?, visibility]
+# form_type: :long, :short, or :none
+dev_events = [
+  [ "AWBW Facilitator Training", :long, 15_000, true,
+    { published: true, featured: true, publicly_visible: true } ],
+  [ "Facilitator Training: Trauma-Informed Art Practices", :long, 12_000, true,
+    { published: true, featured: true } ],
+  [ "A Year of Healing and Rebuilding Together Wellness Day", :short, 0, false,
+    { published: true, publicly_visible: true, publicly_featured: true, featured: true } ],
+  [ "Youth Creativity Day", :short, 0, false,
+    { published: true, publicly_visible: true, publicly_featured: true } ],
+  [ "Mindful Art for Survivors Workshop", :short, 5_000, true,
+    { published: true, publicly_visible: true, publicly_featured: true } ],
+  [ "Community Open Studio Night", :none, 0, false,
+    { published: true, featured: true } ],
+  [ "Annual Celebration of Voices", :none, 0, false,
+    { published: true, publicly_visible: true } ],
+  [ "Art as Healing: Virtual Group Session", :short, 0, false,
+    { published: true, featured: true } ],
+  [ "Leaders in Creativity: Facilitator Roundtable", :short, 0, false,
+    { published: true, publicly_visible: true } ],
+  [ "Family Creative Expression Day", :short, 0, false,
+    { published: true, publicly_visible: true, publicly_featured: true } ],
+  [ "Creative Safety & Support Workshop", :short, 2_500, true,
+    { published: true, featured: true } ],
+  [ "Healing Through Art: Spring Community Gathering", :short, 0, false,
+    { published: true, publicly_visible: true } ]
+]
+
+dev_events.each_with_index do |(title, form_type, cost_cents, scholarship, visibility), i|
+  start_date = Time.current + (5 + i * 5).days
+  end_date = start_date + rand(2..4).hours
+  registration_close = start_date - rand(2..7).days
+  registerable = form_type != :none
 
   desc_content = Faker::Lorem.paragraph(sentence_count: 6)
-  Event.where(title: title,
-              start_date: start_date,
-              end_date: end_date,)
-       .first_or_create!(
-    description: desc_content,
-    rhino_description: desc_content,
-    registration_close_date: registration_close,
-    created_by_id: User.first&.id,
-    created_at: Time.current - rand(10..90).days,
-    updated_at: Time.current - rand(1..30).days,
-    **visibility
+  event = Event.find_or_create_by!(title: title) do |e|
+    e.description = desc_content
+    e.rhino_description = desc_content
+    e.start_date = start_date
+    e.end_date = end_date
+    e.registration_close_date = registration_close
+    e.cost_cents = cost_cents
+    e.public_registration_enabled = false
+    e.created_by = admin_user
+    visibility.each { |k, v| e.send(:"#{k}=", v) }
+  end
+
+  if registerable
+    reg_form = form_type == :long ? long_form : short_form
+    EventForm.find_or_create_by!(event: event, role: "registration") do |ef|
+      ef.form = reg_form
+    end
+    event.update!(public_registration_enabled: true) unless event.public_registration_enabled?
+  end
+
+  if scholarship
+    EventForm.find_or_create_by!(event: event, role: "scholarship") do |ef|
+      ef.form = scholarship_form
+    end
+  end
+end
+
+puts "Creating Event Registrations…"
+
+# Key people for named scenarios
+amy_person = User.find_by(email: "amy.user@example.com")&.person
+maria_j = Person.find_by(first_name: "Maria", last_name: "Johnson")
+anna_g = Person.find_by(first_name: "Anna", last_name: "Garcia")
+sarah_s = Person.find_by(first_name: "Sarah", last_name: "Smith")
+lisa_w = Person.find_by(first_name: "Lisa", last_name: "Williams")
+jessica_b = Person.find_by(first_name: "Jessica", last_name: "Brown")
+kim_d = Person.find_by(first_name: "Kim", last_name: "Davis")
+rosa_dlc = Person.find_by(first_name: "Rosa", last_name: "De La Cruz")
+mario_j = Person.find_by(first_name: "Mario", last_name: "Johnson") # no user
+angel_g = Person.find_by(first_name: "Angel", last_name: "Garcia") # no user
+linda_w = Person.find_by(first_name: "Linda", last_name: "Williams") # no user
+
+# Events by name for clarity
+facilitator_training = Event.find_by(title: "AWBW Facilitator Training")
+trauma_training = Event.find_by(title: "Facilitator Training: Trauma-Informed Art Practices")
+wellness_day = Event.find_by(title: "A Year of Healing and Rebuilding Together Wellness Day")
+youth_day = Event.find_by(title: "Youth Creativity Day")
+mindful_art = Event.find_by(title: "Mindful Art for Survivors Workshop")
+virtual_session = Event.find_by(title: "Art as Healing: Virtual Group Session")
+roundtable = Event.find_by(title: "Leaders in Creativity: Facilitator Roundtable")
+family_day = Event.find_by(title: "Family Creative Expression Day")
+# "Community Open Studio Night" and "Annual Celebration of Voices" have no registration forms — left with zero registrations
+
+registrations_data = []
+
+# --- Facilitator Training: multiple registrations from different people, extended form ---
+# Amy: registered, with form submission, scholarship recipient
+# Maria Johnson: registered, with form submission (has user)
+# Anna Garcia: attended, with form submission (has user)
+# Mario Johnson: registered, no form submission (no user)
+# Kim Davis: cancelled (has user)
+if facilitator_training
+  [
+    { person: amy_person, status: "registered", scholarship_recipient: true, scholarship_tasks_completed: false },
+    { person: maria_j, status: "registered" },
+    { person: anna_g, status: "attended" },
+    { person: mario_j, status: "registered" },
+    { person: kim_d, status: "cancelled" }
+  ].each do |data|
+    next unless data[:person]
+    registrations_data << data.merge(event: facilitator_training)
+  end
+end
+
+# --- Trauma Training: extended form, scholarship ---
+# Sarah Smith: registered with form (has user)
+# Jessica Brown: registered with form, scholarship (has user)
+# Angel Garcia: registered, no form (no user)
+# Linda Williams: no_show (no user)
+if trauma_training
+  [
+    { person: sarah_s, status: "registered" },
+    { person: jessica_b, status: "registered", scholarship_recipient: true, scholarship_tasks_completed: true },
+    { person: angel_g, status: "registered" },
+    { person: linda_w, status: "no_show" }
+  ].each do |data|
+    next unless data[:person]
+    registrations_data << data.merge(event: trauma_training)
+  end
+end
+
+# --- Amy registered to multiple events (person registered across events) ---
+if amy_person
+  [ wellness_day, mindful_art, virtual_session ].compact.each do |evt|
+    registrations_data << { person: amy_person, event: evt, status: "registered" }
+  end
+end
+
+# --- Maria Johnson also registered to multiple events ---
+if maria_j
+  [ wellness_day, youth_day ].compact.each do |evt|
+    registrations_data << { person: maria_j, event: evt, status: "registered" }
+  end
+end
+
+# --- Rosa De La Cruz registered to a couple events (has user) ---
+if rosa_dlc
+  [ wellness_day, family_day ].compact.each do |evt|
+    registrations_data << { person: rosa_dlc, event: evt, status: "registered" }
+  end
+end
+
+# --- Lisa Williams: incomplete_attendance on one event ---
+if lisa_w && roundtable
+  registrations_data << { person: lisa_w, event: roundtable, status: "incomplete_attendance" }
+end
+
+# --- People with multiple active affiliations — ensures org snapshots get exercised ---
+mariana_j = Person.find_by(first_name: "Mariana", last_name: "Johnson")
+samuel_s = Person.find_by(first_name: "Samuel", last_name: "Smith")
+lisa_wn = Person.find_by(first_name: "Lisa", last_name: "Williamson")
+kim_dv = Person.find_by(first_name: "Kim", last_name: "Davidson")
+sarah_d = Person.find_by(first_name: "Sarah", last_name: "Davis")
+
+{ mariana_j => youth_day, samuel_s => mindful_art, lisa_wn => virtual_session,
+  kim_dv => family_day, sarah_d => roundtable }.each do |person, evt|
+  next unless person && evt
+  registrations_data << { person: person, event: evt, status: "registered" }
+end
+
+# --- Wellness Day gets extra registrations (popular free event, short form) ---
+if wellness_day
+  [ sarah_s, jessica_b, lisa_w, kim_d ].compact.each do |person|
+    registrations_data << { person: person, event: wellness_day, status: "registered" }
+  end
+end
+
+# Create all registrations
+registrations_data.each do |data|
+  next unless data[:event] && data[:person]
+  next if EventRegistration.exists?(event: data[:event], registrant: data[:person])
+
+  EventRegistration.create!(
+    event: data[:event],
+    registrant: data[:person],
+    status: data[:status] || "registered",
+    scholarship_recipient: data[:scholarship_recipient] || false,
+    scholarship_tasks_completed: data[:scholarship_tasks_completed] || false,
+    scholarship_requested: data[:scholarship_recipient] || false
   )
 end
 
+# Backfill slugs for any registrations created before the generate_slug callback existed
+EventRegistration.where(slug: nil).find_each do |reg|
+  reg.update!(slug: SecureRandom.urlsafe_base64(16))
+end
 
+puts "Creating Registration Form Submissions…"
+# Create person_form records linking registrants to their event's registration form.
+# This simulates people who filled out the registration form.
+form_submissions = []
 
-puts "Creating new Resources…"
+# Facilitator Training (extended form) — some registrants filled it out, one didn't
+if facilitator_training
+  reg_form = facilitator_training.registration_form
+  if reg_form
+    # People with users who filled out the form
+    [ amy_person, maria_j, anna_g ].compact.each do |person|
+      form_submissions << { person: person, form: reg_form }
+    end
+    # Mario Johnson (no user) did NOT fill out the form — registration without form submission
+  end
+
+  # Amy also filled out the scholarship form
+  scholarship_f = facilitator_training.scholarship_form
+  if scholarship_f && amy_person
+    form_submissions << { person: amy_person, form: scholarship_f }
+  end
+end
+
+# Trauma Training (extended form)
+if trauma_training
+  reg_form = trauma_training.registration_form
+  if reg_form
+    # Sarah Smith (has user) and Jessica Brown (has user) filled out forms
+    [ sarah_s, jessica_b ].compact.each do |person|
+      form_submissions << { person: person, form: reg_form }
+    end
+    # Angel Garcia (no user) filled out the form — person without user + form
+    form_submissions << { person: angel_g, form: reg_form } if angel_g
+    # Linda Williams (no user) did NOT fill out the form
+  end
+
+  # Jessica filled out the scholarship form
+  scholarship_f = trauma_training.scholarship_form
+  if scholarship_f && jessica_b
+    form_submissions << { person: jessica_b, form: scholarship_f }
+  end
+end
+
+# Wellness Day (short form) — most filled it out
+if wellness_day
+  reg_form = wellness_day.registration_form
+  if reg_form
+    # People with users
+    [ amy_person, maria_j, sarah_s, jessica_b, kim_d ].compact.each do |person|
+      form_submissions << { person: person, form: reg_form }
+    end
+    # Rosa (has user) filled it out too
+    form_submissions << { person: rosa_dlc, form: reg_form } if rosa_dlc
+    # Lisa Williams (has user) registered but didn't fill out the form — person with user + no form
+  end
+end
+
+# Mindful Art (short form, has scholarship) — Amy filled out both
+if mindful_art
+  reg_form = mindful_art.registration_form
+  form_submissions << { person: amy_person, form: reg_form } if reg_form && amy_person
+
+  scholarship_f = mindful_art.scholarship_form
+  form_submissions << { person: amy_person, form: scholarship_f } if scholarship_f && amy_person
+end
+
+# Youth Day (short form) — Maria filled it out
+if youth_day
+  reg_form = youth_day.registration_form
+  form_submissions << { person: maria_j, form: reg_form } if reg_form && maria_j
+end
+
+# Virtual Session (short form) — Amy (has user) registered but no form submission — person with user + no form
+# Family Day (short form) — Rosa filled it out
+if family_day
+  reg_form = family_day.registration_form
+  form_submissions << { person: rosa_dlc, form: reg_form } if reg_form && rosa_dlc
+end
+
+# Create all form submissions with sample field responses
+form_submissions.each do |data|
+  next unless data[:person] && data[:form]
+  next if PersonForm.exists?(person: data[:person], form: data[:form])
+
+  pf = PersonForm.create!(person: data[:person], form: data[:form])
+
+  # Fill in required text fields with sample data
+  data[:form].form_fields.where(answer_type: [ :free_form_input_one_line, :free_form_input_paragraph ]).each do |field|
+    sample_text = case field.field_key
+    when "first_name" then data[:person].first_name
+    when "last_name" then data[:person].last_name
+    when "primary_email", "enter_email", "confirm_email" then data[:person].preferred_email || "sample@example.com"
+    when "phone" then "(555) #{rand(100..999)}-#{rand(1000..9999)}"
+    when "street_address", "agency_street_address" then Faker::Address.street_address
+    when "city", "agency_city" then Faker::Address.city
+    when "state_province", "agency_state_province" then Faker::Address.state_abbr
+    when "zip_postal_code", "agency_zip_postal_code" then Faker::Address.zip_code
+    when "agency_organization_name" then Faker::Company.name
+    when "position_title" then "Facilitator"
+    when "agency_website" then "https://example.org"
+    when "racial_ethnic_identity" then "Prefer not to say"
+    when "secondary_email" then data[:person].email_2
+    when "preferred_nickname" then data[:person].first_name
+    when "pronouns" then [ "she/her", "he/him", "they/them" ].sample
+    else
+      if field.answer_type == "free_form_input_paragraph"
+        Faker::Lorem.paragraph(sentence_count: 3)
+      else
+        Faker::Lorem.word.capitalize
+      end
+    end
+
+    PersonFormFormField.create!(
+      person_form: pf,
+      form_field: field,
+      text: sample_text.to_s
+    )
+  end
+end
+
+puts "Creating Resources…"
 10.times do |i|
   kind = Resource::PUBLISHED_KINDS.sample
 
@@ -959,108 +1377,47 @@ puts "Creating Tutorials…"
   Tutorial.where(title: tutorial_data[:title]).first_or_create!(tutorial_data)
 end
 
-puts "Creating registerable Event with registration form…"
-Event.find_or_create_by!(title: "AWBW Facilitator Training") do |event|
-  event.start_date = 2.months.from_now
-  event.end_date = 2.months.from_now + 3.hours
-  event.registration_close_date = 2.months.from_now - 1.day
-  event.published = true
-  event.publicly_visible = true
-  event.featured = true
-  event.public_registration_enabled = true
-  event.cost = 150
-  event.created_by = User.find_by(email: "umberto.user@example.com")
+puts "Creating Bookmarks for seed users…"
+amy = User.find_by(email: "amy.user@example.com")
+priya = User.find_by(email: "priya.user@example.com")
+
+if amy && priya
+  excluded_person_ids = [ amy.person_id, priya.person_id ].compact
+
+  # Two records per bookmarkable type (where available)
+  pairs = {
+    "CommunityNews"        => CommunityNews.order(:id).limit(2).to_a,
+    "Event"                => Event.order(:id).limit(2).to_a,
+    "Organization"         => Organization.order(:id).limit(2).to_a,
+    "Person"               => Person.where.not(id: excluded_person_ids).order(:id).limit(2).to_a,
+    "Report"               => Report.order(:id).limit(2).to_a,
+    "Resource"             => Resource.order(:id).limit(2).to_a,
+    "Story"                => Story.order(:id).limit(2).to_a,
+    "StoryIdea"            => StoryIdea.order(:id).limit(2).to_a,
+    "Tutorial"             => Tutorial.order(:id).limit(2).to_a,
+    "Workshop"             => Workshop.order(:id).limit(2).to_a,
+    "WorkshopIdea"         => WorkshopIdea.order(:id).limit(2).to_a,
+    "WorkshopLog"          => WorkshopLog.order(:id).limit(2).to_a,
+    "WorkshopVariation"    => WorkshopVariation.order(:id).limit(2).to_a,
+    "WorkshopVariationIdea" => WorkshopVariationIdea.order(:id).limit(2).to_a
+  }.reject { |_, v| v.empty? }
+
+  # 3 types are shared between Amy and Priya for tally testing
+  shared_types = pairs.keys.first(3)
+
+  pairs.each do |type, records|
+    if shared_types.include?(type)
+      # Both users bookmark the first record
+      [ amy, priya ].each { |u| u.bookmarks.find_or_create_by!(bookmarkable: records.first) }
+    else
+      # Each user gets a different record (Priya falls back to first if only one exists)
+      amy.bookmarks.find_or_create_by!(bookmarkable: records.first)
+      priya.bookmarks.find_or_create_by!(bookmarkable: records.last)
+    end
+  end
+
+  puts "  Created #{amy.bookmarks.count} bookmarks for Amy, #{priya.bookmarks.count} for Priya"
+  shared = amy.bookmarks.pluck(:bookmarkable_type, :bookmarkable_id) &
+           priya.bookmarks.pluck(:bookmarkable_type, :bookmarkable_id)
+  puts "  #{shared.size} bookmarks shared between both users"
 end
-
-puts "Creating Wellness Day Event with custom registration form…"
-wellness_event = Event.find_or_create_by!(title: "A Year of Healing and Rebuilding Together Wellness Day") do |event|
-  event.start_date = 3.months.from_now
-  event.end_date = 3.months.from_now + 4.hours
-  event.registration_close_date = 3.months.from_now - 1.day
-  event.published = true
-  event.publicly_visible = true
-  event.publicly_featured = true
-  event.featured = true
-  event.public_registration_enabled = false
-  event.cost = 0
-  event.created_by = User.find_by(email: "umberto.user@example.com")
-end
-
-# Rebuild the registration form from scratch so it always matches the seed definition
-old_form = wellness_event.forms.find_by(name: EventRegistrationFormBuilder::FORM_NAME)
-if old_form
-  old_form.person_forms.destroy_all
-  old_form.destroy!
-end
-
-form = wellness_event.forms.create!(name: EventRegistrationFormBuilder::FORM_NAME)
-position = 0
-
-# --- Name ---
-position += 1
-form.form_fields.create!(
-  question: "First Name", answer_type: :free_form_input_one_line, status: :active,
-  position: position, is_required: true, field_key: "first_name", field_group: "contact"
-)
-
-position += 1
-form.form_fields.create!(
-  question: "Last Name", answer_type: :free_form_input_one_line, status: :active,
-  position: position, is_required: true, field_key: "last_name", field_group: "contact"
-)
-
-# --- Email ---
-position += 1
-form.form_fields.create!(
-  question: "Enter Email", answer_type: :free_form_input_one_line, status: :active,
-  position: position, is_required: true, field_key: "primary_email", field_group: "contact"
-)
-
-position += 1
-form.form_fields.create!(
-  question: "Confirm Email", answer_type: :free_form_input_one_line, status: :active,
-  position: position, is_required: true, field_key: "confirm_email", field_group: "contact"
-)
-
-# --- Consent ---
-position += 1
-consent_field = form.form_fields.create!(
-  question: "Consent", answer_type: :multiple_choice_checkbox, status: :active,
-  position: position, is_required: true, field_key: "consent", field_group: "consent",
-  instructional_hint: "By submitting this form, I consent to receive updates from A Window Between Worlds, " \
-    "including information about this event as well as upcoming events, training opportunities, resources, " \
-    "impact stories, and ways to support our mission. I understand I can unsubscribe at any time."
-)
-
-ao = AnswerOption.find_or_create_by!(name: "I agree to receive email communications from A Window Between Worlds.") do |a|
-  a.position = 0
-end
-consent_field.form_field_answer_options.create!(answer_option: ao)
-
-# --- How did you hear about this event? ---
-position += 1
-referral_field = form.form_fields.create!(
-  question: "How did you hear about this event?", answer_type: :multiple_choice_checkbox, status: :active,
-  position: position, is_required: true, field_key: "referral_source", field_group: "qualitative"
-)
-
-[ "AWBW Email", "Facebook", "Instagram", "LinkedIn", "Online Search", "Word of Mouth", "Other" ].each_with_index do |opt, idx|
-  ao = AnswerOption.find_or_create_by!(name: opt) { |a| a.position = idx }
-  referral_field.form_field_answer_options.create!(answer_option: ao)
-end
-
-# --- Training interest ---
-position += 1
-interest_field = form.form_fields.create!(
-  question: "Are you interested in learning more about upcoming trainings or resources?",
-  answer_type: :multiple_choice_checkbox, status: :active,
-  position: position, is_required: false, field_key: "training_interest", field_group: "qualitative"
-)
-
-[ "Yes", "Not right now" ].each_with_index do |opt, idx|
-  ao = AnswerOption.find_or_create_by!(name: opt) { |a| a.position = idx }
-  interest_field.form_field_answer_options.create!(answer_option: ao)
-end
-
-# Enable public registration after form is built (avoids triggering the default form builder)
-wellness_event.update!(public_registration_enabled: true) unless wellness_event.public_registration_enabled?

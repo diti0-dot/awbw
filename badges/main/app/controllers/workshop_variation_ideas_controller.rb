@@ -70,6 +70,11 @@ class WorkshopVariationIdeasController < ApplicationController
       set_form_variables
       render :new, status: :unprocessable_content
     end
+  rescue ActiveRecord::RecordNotUnique => e
+    Rails.logger.error "WorkshopVariationIdea create failed: #{e.class} - #{e.message}"
+    @workshop_variation_idea.errors.add(:base, "could not be saved due to a conflict. Please try again.")
+    set_form_variables
+    render :new, status: :unprocessable_content
   end
 
   def update
@@ -80,6 +85,11 @@ class WorkshopVariationIdeasController < ApplicationController
       set_form_variables
       render :edit, status: :unprocessable_content
     end
+  rescue ActiveRecord::RecordNotUnique => e
+    Rails.logger.error "WorkshopVariationIdea update failed: #{e.class} - #{e.message}"
+    @workshop_variation_idea.errors.add(:base, "could not be saved due to a conflict. Please try again.")
+    set_form_variables
+    render :edit, status: :unprocessable_content
   end
 
   def destroy
@@ -98,7 +108,7 @@ class WorkshopVariationIdeasController < ApplicationController
     @workshop_variation_idea.build_primary_asset if @workshop_variation_idea.primary_asset.blank?
     @workshop_variation_idea.gallery_assets.build
 
-    @organizations = authorized_scope(Organization.all).order(:name).includes(:windows_type)
+    @organizations = authorized_scope(Organization.all, as: :affiliated).order(:name).includes(:windows_type)
     @windows_types = WindowsType.order(:name)
     @users = authorized_scope(User.has_access.or(User.where(id: @workshop_variation_idea.created_by_id)))
                  .order(:first_name, :last_name)
