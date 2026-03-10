@@ -34,7 +34,7 @@ AWBW Portal (Rails 8.1)
 
 | Directory | Purpose | Count |
 |---|---|---|
-| `app/controllers/` | Rails controllers (admin/, api/v1/, events/) | ~66 files |
+| `app/controllers/` | Rails controllers (admin/, events/) | ~61 files |
 | `app/views/` | ERB templates | ~434 files |
 | `app/decorators/` | Draper decorators for view logic | ~36 files |
 | `app/policies/` | ActionPolicy authorization rules | ~43 files |
@@ -113,7 +113,6 @@ AWBW Portal (Rails 8.1)
 
 - **Root level** (~48 controllers): Workshops, stories, resources, events, people, organizations, etc.
 - **`admin/`**: HomeController, AnalyticsController, AhoyActivitiesController
-- **`api/v1/`**: ApiController base, Authentications, Workshops, Quotes, Resources
 - **`events/`**: Registrations sub-resource (create/destroy + slug-based show at `/registration/:slug`)
 - **Devise overrides**: Registrations, Confirmations, Passwords
 
@@ -153,7 +152,6 @@ end
 - `TaggingSearchService` — Search and filter tagging data
 - `PersonFromUserService` — Create Person from User account
 - `BulkInviteService` — Bulk send welcome instructions and reset created_at for users
-- `AuthenticationToken` — JWT token generation for API
 - `ModelDeduper` — Deduplication logic
 - `NotificationServices::CreateNotification` — Notification creation
 - `NotificationServices::PersistDeliveredEmail` — Email delivery tracking
@@ -207,6 +205,12 @@ end
 - **Previews** live in `test/mailers/previews/` (viewable at `/rails/mailers/` in development)
 
 ## Frontend
+
+### Preferences
+
+- **Strongly prefer Stimulus** for JavaScript behavior — do not write raw/inline JS or jQuery
+- **Always use Tailwind CSS** utility classes for styling — do not write custom CSS unless absolutely necessary
+- Prefer Turbo for navigation and form submissions before reaching for Stimulus
 
 ### Stimulus Controllers (32)
 
@@ -294,6 +298,11 @@ Common factory traits across models:
 
 RuboCop linting on PRs and pushes to main.
 
+## PR Workflow
+
+- After completing work, create a pull request using `gh pr create`
+- Once the PR is created, prepend the PR number to the branch name (e.g., rename `maebeale/fix-login` to `maebeale/1234-fix-login`) using `git branch -m` and `git push origin -u` with the new name, then delete the old remote branch
+
 ## Key Library Usage
 
 | Need | Library |
@@ -311,7 +320,14 @@ RuboCop linting on PRs and pushes to main.
 | Geocoding | Geocoder + MaxMind GeoIP2 |
 | Email styling | Premailer-rails (inline CSS) |
 | Positioning | Positioning gem for ordered records |
-| API | JWT tokens, Apipie docs, Rack CORS |
+
+## PRs
+
+- On every push, update the PR title and description to reflect the current diff
+
+## Git
+
+- When rebasing onto main, review incoming changes for their intent and flag any oversights — missing tests, incomplete migrations, broken assumptions, or conflicts between the two branches. Check both directions: schema/model changes on either branch that affect views, partials, or layouts on the other (e.g., main redesigned a table's CSS but your branch adds new columns to it, or vice versa)
 
 ## Rake Tasks
 

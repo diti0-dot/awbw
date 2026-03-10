@@ -34,7 +34,7 @@ RSpec.describe "Workshops", type: :system do
         fill_in 'query', with: 'best workshop'
 
         # Open the dropdown
-        click_on "Windows Audience"  # this clicks the <button> text/label
+        click_on "Windows audience"  # this clicks the <button> text/label
         check("windows_types_#{adult_window.id}")
 
         expect(page).to have_content(workshop_world.title)
@@ -74,7 +74,7 @@ RSpec.describe "Workshops", type: :system do
         expect(page).to have_content(workshop_adult.title)
 
         # Also check a windows type checkbox
-        click_on "Windows Audience"
+        click_on "Windows audience"
         check("windows_types_#{adult_window.id}")
         expect(page).to have_content(workshop_adult.title)
 
@@ -105,6 +105,26 @@ RSpec.describe "Workshops", type: :system do
         visit workshop_path(workshop)
 
         expect(page).to have_content(workshop.title)
+      end
+
+      it "Gallery images link to full-size in a new tab" do
+        sign_in(create(:user))
+
+        workshop = create(:workshop, :published)
+        create(:primary_asset, :with_file, owner: workshop)
+        create(:gallery_asset, :with_file, owner: workshop)
+
+        visit workshop_path(workshop)
+
+        within ".workshop-gallery" do
+          links = all("a.display-image-link")
+          expect(links.length).to be >= 2
+
+          links.each do |link|
+            expect(link[:target]).to eq("_blank")
+            expect(link[:rel]).to include("noopener")
+          end
+        end
       end
     end
   end

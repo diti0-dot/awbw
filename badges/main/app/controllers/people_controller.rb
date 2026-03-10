@@ -75,6 +75,13 @@ class PeopleController < ApplicationController
     set_form_variables
   end
 
+  def retry_new
+    @person = Person.new(person_params.except(:user_attributes))
+    authorize! @person
+    set_form_variables
+    render :new
+  end
+
   def edit
     @person = Person.includes(
       :user,
@@ -99,17 +106,20 @@ class PeopleController < ApplicationController
     end
 
     unless params[:skip_duplicate_check].present?
-      duplicates = find_duplicate_people(
+      @duplicates = find_duplicate_people(
         @person.first_name,
         @person.last_name,
         @person.email
       )
-      if duplicates.any?
-        redirect_to check_duplicates_people_path(
-          first_name: @person.first_name,
-          last_name: @person.last_name,
-          email: @person.email
-        )
+      if @duplicates.any?
+        @first_name = @person.first_name
+        @last_name = @person.last_name
+        @email = @person.email
+        @blocked = @duplicates.any? { |d| d[:blocked] }
+        raw_params = params[:person]&.to_unsafe_h || {}
+        @had_avatar = raw_params[:avatar].is_a?(ActionDispatch::Http::UploadedFile)
+        @stored_params = raw_params
+        render :check_duplicates
         return
       end
     end
@@ -134,7 +144,7 @@ class PeopleController < ApplicationController
 
     @person.assign_attributes(person_params)
     @person.comments.select(&:new_record?).each { |c| c.created_by = current_user; c.updated_by = current_user }
-    @person.comments.select(&:changed?).each { |c| c.updated_by = current_user }
+    @person.comments.select { |c| c.persisted? && c.body_changed? }.each { |c| c.updated_by = current_user }
 
     if @person.save
       assign_associations(@person) if params.dig(:person, :category_ids)
@@ -162,6 +172,7 @@ class PeopleController < ApplicationController
     @email = params[:email]
     @duplicates = find_duplicate_people(@first_name, @last_name, @email)
     @blocked = @duplicates.any? { |d| d[:blocked] }
+    @stored_params = { first_name: @first_name, last_name: @last_name, email: @email }
   end
 
   private
@@ -391,7 +402,6 @@ class PeopleController < ApplicationController
       affiliations_attributes: [
         :id,
         :organization_id,
-        :position,
         :title,
         :inactive,
         :primary_contact,
@@ -399,7 +409,7 @@ class PeopleController < ApplicationController
         :end_date,
         :_destroy
       ],
-      comments_attributes: [ :id, :body ],
+      comments_attributes: [ :id, :body, :_destroy ],
     )
   end
 end

@@ -23,6 +23,11 @@ module Admin
                             *prefixes.map { |p| "#{p}.%" })
       end
 
+      # Filter by event name
+      if params[:event_name].present?
+        scope = scope.where("ahoy_events.name LIKE ?", "%#{Ahoy::Event.sanitize_sql_like(params[:event_name])}%")
+      end
+
       # Filter by user (if viewing specific user activity)
       scope = scope.where(user: @users) if @users.present?
 
@@ -42,6 +47,15 @@ module Admin
       # Filter by visit
       if params[:visit_id].present?
         scope = scope.where(visit_id: params[:visit_id])
+      end
+
+      # Filter by props (full-text search across properties JSON)
+      if params[:props].present?
+        term = Ahoy::Event.sanitize_sql_like(params[:props])
+        scope = scope.where(
+          "CAST(ahoy_events.properties AS CHAR) LIKE ?",
+          "%#{term}%"
+        )
       end
 
       # Audience filter
@@ -160,10 +174,11 @@ module Admin
         .sort_by { |_k, v| -v }.first(10).to_h
 
       # Windows types - batch lookup
-      wt_ids = events
+      wt_raw = events
         .where(name: [ "filter.workshops", "search.workshops" ])
         .pluck(Arel.sql("JSON_EXTRACT(properties, '$.filters.windows_types')"))
         .flat_map { |arr| safe_json_parse(arr) }
+      wt_ids = wt_raw.map { |wt| wt.is_a?(Hash) ? wt["id"] : wt }.compact
       wt_names = WindowsType.where(id: wt_ids.uniq).pluck(:id, :short_name).to_h
       @ws_windows_types = wt_ids
         .map { |id| wt_names[id] }.compact.tally

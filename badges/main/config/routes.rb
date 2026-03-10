@@ -17,7 +17,6 @@ Rails.application.routes.draw do
   resources :images, only: [ :show ]
 
   # mount Ckeditor::Engine, at: '/admin/ckeditor', as: 'ckeditor'
-  apipie
   authenticate :user, ->(user) { user.super_user? } do
     mount Blazer::Engine, at: "blazer"
   end
@@ -35,6 +34,7 @@ Rails.application.routes.draw do
   resources :users, only: [ :new, :index, :show, :edit, :update, :create, :destroy ] do
     collection do
       get :check_duplicates
+      post :retry_new
     end
     member do
       post :send_reset_password_instructions
@@ -59,8 +59,6 @@ Rails.application.routes.draw do
   get "tags", to: "tags#index", as: "tags"
   get "tags/sectors", to: "tags#sectors", as: "tags_sectors"
   get "tags/categories", to: "tags#categories", as: "tags_categories"
-
-  get "image_migration_audit", to: "image_migration_audit#index"
 
   namespace :admin do
     get "/",                         to: "home#index" # admin home page
@@ -113,6 +111,7 @@ Rails.application.routes.draw do
   resources :people do
     collection do
       get :check_duplicates
+      post :retry_new
     end
     resources :comments, only: [ :index, :create ]
   end
@@ -160,7 +159,7 @@ Rails.application.routes.draw do
   resources :story_ideas
   resources :stories
   resources :story_shares, only: [ :index, :show ]
-  resources :tutorials
+  resources :video_recordings
   resources :user_forms
   resources :windows_types
   resources :workshop_ideas
@@ -168,20 +167,14 @@ Rails.application.routes.draw do
   resources :workshop_log_creation_wizard
   resources :workshop_variation_ideas
   resources :workshop_variations
-  resources :workshops
+  resources :workshops do
+    resources :comments, only: [ :index, :create ]
+  end
 
   resources :workshop_mentions, only: [ :index ]
   resources :resource_mentions, only: [ :index ]
   resources :rich_text_asset_mentions, only: [ :index ]
   resources :event_mentions, only: [ :index ]
-
-  namespace :api do
-    namespace :v1 do
-      resources :authentications, only: [ :create ]
-      resources :quotes
-      resources :bookmarks
-    end
-  end
 
   namespace :home do
     resources :workshops, only: :index
@@ -189,7 +182,7 @@ Rails.application.routes.draw do
     resources :stories, only: :index
     resources :community_news, only: :index
     resources :events, only: :index
-    resources :video_gallery, only: :index
+    resources :video_recordings, only: :index
   end
 
   root to: "home#index"

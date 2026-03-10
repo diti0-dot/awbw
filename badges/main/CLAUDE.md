@@ -89,6 +89,14 @@ This project uses rubocop-rails-omakase. All code MUST follow these rules:
 - **No parentheses around conditions:** `if foo` not `if (foo)`
 - **No semicolons** to separate statements
 
+## HTML/ERB Formatting
+
+### Tag Attributes
+- **Closing `>` on same line as last attribute** — do not put `>` on its own line
+- When attributes span multiple lines, keep the closing `>` with the last attribute
+- Good: `<div class="..." id="...">` or `<div class="...\n     id="...">`
+- Bad: `<div class="...\n     id="..."\n  >`
+
 ## Related Files
 
 When changing a model or controller, check whether these related files need updates:
@@ -101,6 +109,7 @@ When changing a model or controller, check whether these related files need upda
 | Service | Service spec |
 | Decorator | Decorator spec |
 | Add/remove model, concern, service, or gem | AGENTS.md, `.github/copilot-instructions.md` |
+| Code style rules | `.github/copilot-instructions.md` (keep in sync) |
 
 ## Key Directories
 
@@ -149,10 +158,13 @@ bundle exec bundle-audit check --update
 ## JavaScript
 
 - ES6+ syntax, ESM imports/exports
-- Prefer Stimulus + Turbo for new interactive features
+- **Strongly prefer Stimulus** for JavaScript behavior — do not write raw/inline JS or jQuery
+- **Always use Tailwind CSS** utility classes for styling — do not write custom CSS unless absolutely necessary
+- Prefer Turbo for navigation and form submissions before reaching for Stimulus
 - Controller naming: `[name]_controller.js`
 - Keep controllers focused and small
-- Use Tailwind CSS v4 utility classes
+- **Use Stimulus targets and data attributes** to reference DOM elements — avoid `this.element.querySelector` and direct DOM queries. Declare `static targets = [...]` and use `data-[controller]-target` attributes in views.
+- **Use Stimulus shorthand action descriptors and shorthand pairs** — omit the event when it's the default for that element (e.g., `input` for `<input>`/`<textarea>`, `click` for `<button>`/`<a>`, `submit` for `<form>`). Write `controller#action` not `input->controller#action` on an input element. Only specify the event when using a non-default (e.g., `change->controller#action` on an input). See [Stimulus Actions](https://stimulus.hotwired.dev/reference/actions#event-shorthand).
 
 ## Migrations
 
@@ -164,13 +176,17 @@ bundle exec bundle-audit check --update
 - Default branch is `main`
 - Commit messages should explain why, not what
 - CI runs via GitHub Actions (`.github/workflows/`)
+- **When rebasing onto main**, review incoming changes for their intent and flag any oversights — missing tests, incomplete migrations, broken assumptions, or conflicts between the two branches. Check both directions: schema/model changes on either branch that affect views, partials, or layouts on the other (e.g., main redesigned a table's CSS but your branch adds new columns to it, or vice versa)
 
 ## PRs
 
+- After completing work, **create a pull request** using `gh pr create`
+- Once the PR is created, **prepend the PR number to the branch name** (e.g., rename `maebeale/fix-login` to `maebeale/1234-fix-login`) using `git branch -m` and `git push origin -u` with the new name, then delete the old remote branch
 - Use `docs/pull_request_template.md` for PR description structure
 - Use bullet points, not paragraphs, when filling out each section
 - Description must explain why the change was made, not just what
 - Include screenshots for UI changes
+- **On every push**, update the PR title and description to reflect the current diff
 
 ## Quick Commands
 

@@ -32,10 +32,15 @@
 en:
   hello: "Hello world"
   activerecord:
+    attributes:
+      workshop_variation:
+        rhino_body: "Details"
+      workshop_variation_idea:
+        rhino_body: "Details"
     models:
-      tutorial:
+      video_recording:
         one: "Video"
-        other: "Video Gallery"
+        other: "Videos"
   helpers:
     submit:
       create: "Submit"

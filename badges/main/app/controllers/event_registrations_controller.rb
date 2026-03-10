@@ -13,8 +13,7 @@ class EventRegistrationsController < ApplicationController
     @event_registrations = filtered.includes(registrant: [ :user, { avatar_attachment: :blob } ], event: :event_forms).paginate(page: params[:page], per_page: per_page)
     @events = Event.order(start_date: :desc)
     @filtered_event = Event.find_by(id: params[:event_id]) if params[:event_id].present?
-    @registrants = authorized_scope(Person.left_joins(:user))
-                     .order(Arel.sql("LOWER(people.first_name), LOWER(people.last_name), LOWER(users.email), LOWER(people.email_2), LOWER(people.email)"))
+    @selected_registrant = Person.find_by(id: params[:registrant_id]) if params[:registrant_id].present?
 
 
     respond_to do |format|
@@ -75,7 +74,7 @@ class EventRegistrationsController < ApplicationController
     authorize! @event_registration
     @event_registration.assign_attributes(event_registration_update_params)
     @event_registration.comments.select(&:new_record?).each { |c| c.created_by = current_user; c.updated_by = current_user }
-    @event_registration.comments.select(&:changed?).each { |c| c.updated_by = current_user }
+    @event_registration.comments.select { |c| c.persisted? && c.body_changed? }.each { |c| c.updated_by = current_user }
 
     if @event_registration.save
       respond_to do |format|

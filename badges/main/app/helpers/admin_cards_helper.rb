@@ -13,7 +13,7 @@ module AdminCardsHelper
       custom_card("Tagging counts", taggings_matrix_path, icon: "🧮", color: :lime),
       model_card(:workshops, icon: "🎨"),
       model_card(:workshop_variations, icon: "🔀"),
-      model_card(:tutorials, icon: "🎬", title: "Video Gallery"),
+      model_card(:video_recordings, icon: "🎬", title: "Video Gallery"),
       model_card(:banners, icon: "📣"),
       model_card(:community_news, icon: "📰"),
       model_card(:faqs, icon: "❔", title: "FAQs")
@@ -52,7 +52,7 @@ module AdminCardsHelper
                  intensity: 100,
                  title: "Sectors",
                  params: { published: true }),
-      custom_card("Windows types", windows_types_path, icon: "🪟")
+      custom_card("Windows audiences", windows_types_path, icon: "🪟")
     ]
   end
 

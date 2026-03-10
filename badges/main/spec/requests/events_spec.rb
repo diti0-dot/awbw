@@ -30,9 +30,9 @@ RSpec.describe "Events", type: :request do
     end
 
     context "when user time_zone is set" do
-      # 19:00 UTC = 12:00 noon PT = 15:00 (3 pm) ET (June 15, 2025 with DST)
-      let(:utc_start) { Time.utc(2025, 6, 15, 19, 0, 0) }
-      let(:utc_end)   { Time.utc(2025, 6, 15, 20, 0, 0) }
+      # 19:00 UTC = 12:00 noon PT = 15:00 (3 pm) ET (June 15, 2031 with DST)
+      let(:utc_start) { Time.utc(2031, 6, 15, 19, 0, 0) }
+      let(:utc_end)   { Time.utc(2031, 6, 15, 20, 0, 0) }
       let!(:event_with_fixed_times) do
         create(:event, :published,
           start_date: utc_start,
@@ -59,6 +59,37 @@ RSpec.describe "Events", type: :request do
         # 19:00 UTC = 3:00 pm ET (styled format on show page)
         expect(response.body).to include("Sunday, June 15")
         expect(response.body).to include("3 pm - 4 pm")
+      end
+    end
+  end
+
+  describe "GET /show" do
+    context "when event has ended" do
+      let(:ended_event) { create(:event, :published, :ended) }
+
+      it "allows admin to view" do
+        sign_in admin
+        get event_path(ended_event)
+        expect(response).to have_http_status(:ok)
+      end
+
+      it "allows registered user to view" do
+        user_with_person = create(:user, :with_person)
+        sign_in user_with_person
+        create(:event_registration, event: ended_event, registrant: user_with_person.person, status: "registered")
+        get event_path(ended_event)
+        expect(response).to have_http_status(:ok)
+      end
+
+      it "redirects unregistered user" do
+        sign_in user
+        get event_path(ended_event)
+        expect(response).to redirect_to(root_path)
+      end
+
+      it "redirects unauthenticated user" do
+        get event_path(ended_event)
+        expect(response).to redirect_to(root_path)
       end
     end
   end
@@ -248,6 +279,60 @@ RSpec.describe "Events", type: :request do
     let!(:registration) { create(:event_registration, event: event, registrant: person) }
 
     before { sign_in admin }
+
+    context "confirmed column toggle" do
+      it "renders the slide toggle for confirmed column" do
+        get manage_event_path(event)
+
+        expect(response).to have_http_status(:ok)
+        expect(response.body).to include('data-controller="column-toggle"')
+        expect(response.body).to include("Confirmed")
+      end
+
+      it "renders confirmed column header hidden by default" do
+        get manage_event_path(event)
+
+        expect(response.body).to include("data-column-toggle-col")
+      end
+
+      context "when registrant has a confirmed user" do
+        it "shows confirmed check icon" do
+          get manage_event_path(event)
+
+          expect(response.body).to include("fa-check-circle")
+        end
+      end
+
+      context "when registrant has an unconfirmed user with invite sent" do
+        let(:person) { create(:person, user: create(:user, :unconfirmed, welcome_instructions_sent_at: 1.day.ago)) }
+
+        it "shows clock icon" do
+          get manage_event_path(event)
+
+          expect(response.body).to include("fa-solid fa-clock")
+        end
+      end
+
+      context "when registrant has an unconfirmed user without invite" do
+        let(:person) { create(:person, user: create(:user, :unconfirmed)) }
+
+        it "shows invite button" do
+          get manage_event_path(event)
+
+          expect(response.body).to include("Invite")
+        end
+      end
+
+      context "when registrant has no user" do
+        let(:person) { create(:person, user: nil) }
+
+        it "shows create user link" do
+          get manage_event_path(event)
+
+          expect(response.body).to include("Create user")
+        end
+      end
+    end
 
     context "registration form icon" do
       let(:reg_form) { create(:form, :standalone, name: "Registration Form") }

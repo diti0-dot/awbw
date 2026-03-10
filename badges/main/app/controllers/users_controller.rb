@@ -61,6 +61,13 @@ class UsersController < ApplicationController
     set_form_variables
   end
 
+  def retry_new
+    @user = User.new(user_params)
+    authorize! @user
+    set_form_variables
+    render :new
+  end
+
   def edit
     @user = User.includes(comments: [ :created_by, :updated_by ]).find(params[:id])
     authorize! @user
@@ -73,12 +80,14 @@ class UsersController < ApplicationController
 
     # Check for duplicate email before saving
     unless params[:skip_duplicate_check].present?
-      email = @user.email
-      if email.present? && !email.downcase.end_with?("@example.com")
-        person_id = params[:person_id].presence || params.dig(:user, :person_id).presence || @user.person_id
-        duplicates = find_duplicate_users(email, exclude_person_id: person_id)
-        if duplicates.any?
-          redirect_to check_duplicates_users_path(email: email, person_id: person_id)
+      @email = @user.email
+      if @email.present? && !@email.downcase.end_with?("@example.com")
+        @person_id = params[:person_id].presence || params.dig(:user, :person_id).presence || @user.person_id
+        @duplicates = find_duplicate_users(@email, exclude_person_id: @person_id)
+        if @duplicates.any?
+          @blocked = @duplicates.any? { |d| d[:blocked] }
+          @stored_params = params[:user]&.to_unsafe_h || {}
+          render :check_duplicates
           return
         end
       end
@@ -112,6 +121,7 @@ class UsersController < ApplicationController
     @person_id = params[:person_id]
     @duplicates = find_duplicate_users(@email, exclude_person_id: @person_id)
     @blocked = @duplicates.any? { |d| d[:blocked] }
+    @stored_params = { email: @email }
   end
 
   def update
@@ -126,7 +136,7 @@ class UsersController < ApplicationController
     @user.assign_attributes(user_params.except(:password, :password_confirmation))
     @user.updated_by = current_user
     @user.comments.select(&:new_record?).each { |c| c.created_by = current_user; c.updated_by = current_user }
-    @user.comments.select(&:changed?).each { |c| c.updated_by = current_user }
+    @user.comments.select { |c| c.persisted? && c.body_changed? }.each { |c| c.updated_by = current_user }
 
     # Suppress Devise's automatic reconfirmation email so the interstitial can control it
     @user.skip_confirmation_notification!
@@ -408,7 +418,7 @@ class UsersController < ApplicationController
       :phone, :phone2, :phone3, :birthday, :best_time_to_call, :notes, # legacy to remove later
       #####
 
-      comments_attributes: [ :id, :body ],
+      comments_attributes: [ :id, :body, :_destroy ],
       affiliations_attributes: [ :id, :organization_id, :position, :title, :inactive, :primary_contact, :start_date, :end_date, :_destroy ],
     )
   end

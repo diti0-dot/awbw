@@ -24,6 +24,9 @@ application.register("collection", CollectionController)
 import ConfirmEmailController from "./confirm_email_controller"
 application.register("confirm-email", ConfirmEmailController)
 
+import ColumnToggleController from "./column_toggle_controller"
+application.register("column-toggle", ColumnToggleController)
+
 import CommentEditToggleController from "./comment_edit_toggle_controller"
 application.register("comment-edit-toggle", CommentEditToggleController)
 
@@ -66,6 +69,9 @@ application.register("rhino-source", RhinoSourceController)
 import SearchBoxController from "./search_box_controller"
 application.register("search-box", SearchBoxController)
 
+import SearchableCheckboxController from "./searchable_checkbox_controller"
+application.register("searchable-checkbox", SearchableCheckboxController)
+
 import SearchableSelectController from "./searchable_select_controller"
 application.register("searchable-select", SearchableSelectController)
 
@@ -98,3 +104,4 @@ application.register("toggle-user-icon", ToggleUserIconController)
 
 import RemoteSelectController from "./remote_select_controller"
 application.register("remote-select", RemoteSelectController)
+

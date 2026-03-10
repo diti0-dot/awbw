@@ -49,23 +49,23 @@ RSpec.describe "Bookmarks", type: :request do
       expect(response).to redirect_to(root_path)
     end
 
-    context "with tutorials" do
-      let(:tutorial) { create(:tutorial, :published) }
+    context "with video_recordings" do
+      let(:video_recording) { create(:video_recording, :published) }
 
-      it "cannot create a tutorial bookmark" do
+      it "cannot create a video_recording bookmark" do
         expect {
           post bookmarks_path,
-               params: { bookmark: { bookmarkable_id: tutorial.id,
-                                     bookmarkable_type: "Tutorial" } }
+               params: { bookmark: { bookmarkable_id: video_recording.id,
+                                     bookmarkable_type: "VideoRecording" } }
         }.not_to change(Bookmark, :count)
 
         expect(response).to redirect_to(root_path)
       end
 
-      it "cannot destroy a tutorial bookmark" do
-        tutorial_bookmark = create(:bookmark, user: regular_user, bookmarkable: tutorial)
+      it "cannot destroy a video_recording bookmark" do
+        video_recording_bookmark = create(:bookmark, user: regular_user, bookmarkable: video_recording)
         expect {
-          delete bookmark_path(tutorial_bookmark)
+          delete bookmark_path(video_recording_bookmark)
         }.not_to change(Bookmark, :count)
 
         expect(response).to redirect_to(root_path)
@@ -100,18 +100,44 @@ RSpec.describe "Bookmarks", type: :request do
       expect(response.body).not_to include("value=\"Report\"")
     end
 
-    it "includes Video (Tutorial) in bookmark type dropdown" do
+    it "includes Video in bookmark type dropdown" do
       get personal_bookmarks_path
-      expect(response.body).to include(Tutorial.model_name.human)
+      expect(response.body).to include(VideoRecording.model_name.human)
     end
 
-    it "can access personal bookmarks sorted by title" do
-      get personal_bookmarks_path, params: { sort: "title" }
+    it "can access personal bookmarks sorted by title via turbo frame" do
+      get personal_bookmarks_path, params: { sort: "title" },
+          headers: { "Turbo-Frame" => "personal_bookmarks_results" }
       expect(response).to have_http_status(:ok)
     end
 
-    it "can access personal bookmarks with title filter and title sort" do
-      get personal_bookmarks_path, params: { sort: "title", title: "test" }
+    it "can access personal bookmarks with keyword filter and title sort via turbo frame" do
+      get personal_bookmarks_path, params: { sort: "title", keyword: "test" },
+          headers: { "Turbo-Frame" => "personal_bookmarks_results" }
+      expect(response).to have_http_status(:ok)
+    end
+
+    it "renders shell page without results for non-turbo personal request" do
+      get personal_bookmarks_path
+      expect(response.body).to include("personal_bookmarks_results")
+      expect(response.body).to include("Keyword")
+    end
+
+    it "renders results for turbo frame personal request" do
+      get personal_bookmarks_path,
+          headers: { "Turbo-Frame" => "personal_bookmarks_results" }
+      expect(response).to have_http_status(:ok)
+    end
+
+    it "can filter personal bookmarks by keyword via turbo frame" do
+      get personal_bookmarks_path, params: { keyword: workshop.title },
+          headers: { "Turbo-Frame" => "personal_bookmarks_results" }
+      expect(response).to have_http_status(:ok)
+    end
+
+    it "can sort personal bookmarks by popularity via turbo frame" do
+      get personal_bookmarks_path, params: { sort: "popularity", direction: "desc" },
+          headers: { "Turbo-Frame" => "personal_bookmarks_results" }
       expect(response).to have_http_status(:ok)
     end
 
@@ -150,23 +176,44 @@ RSpec.describe "Bookmarks", type: :request do
       expect(response).to redirect_to(root_path)
     end
 
-    context "with tutorials" do
-      let(:tutorial) { create(:tutorial, :published) }
+    context "with video_recordings" do
+      let(:video_recording) { create(:video_recording, :published) }
 
-      it "can create a tutorial bookmark" do
+      it "can create a video_recording bookmark" do
         expect {
           post bookmarks_path,
-               params: { bookmark: { bookmarkable_id: tutorial.id,
-                                     bookmarkable_type: "Tutorial" } },
+               params: { bookmark: { bookmarkable_id: video_recording.id,
+                                     bookmarkable_type: "VideoRecording" } },
                headers: turbo_headers
         }.to change(Bookmark, :count).by(1)
       end
 
-      it "can destroy their own tutorial bookmark" do
-        tutorial_bookmark = create(:bookmark, user: regular_user, bookmarkable: tutorial)
+      it "can destroy their own video_recording bookmark" do
+        video_recording_bookmark = create(:bookmark, user: regular_user, bookmarkable: video_recording)
         expect {
-          delete bookmark_path(tutorial_bookmark), headers: turbo_headers
+          delete bookmark_path(video_recording_bookmark), headers: turbo_headers
         }.to change(Bookmark, :count).by(-1)
+      end
+    end
+
+    context "with person and video_recording bookmarks" do
+      let(:person) { create(:person) }
+      let(:video_recording) { create(:video_recording, :published) }
+      let!(:person_bookmark) { create(:bookmark, user: regular_user, bookmarkable: person) }
+      let!(:video_bookmark) { create(:bookmark, user: regular_user, bookmarkable: video_recording) }
+
+      it "renders personal bookmarks with person bookmark via turbo frame" do
+        get personal_bookmarks_path,
+            headers: { "Turbo-Frame" => "personal_bookmarks_results" }
+        expect(response).to have_http_status(:ok)
+        expect(response.body).to include(person.first_name)
+      end
+
+      it "renders personal bookmarks with video_recording bookmark via turbo frame" do
+        get personal_bookmarks_path,
+            headers: { "Turbo-Frame" => "personal_bookmarks_results" }
+        expect(response).to have_http_status(:ok)
+        expect(response.body).to include(video_recording.title)
       end
     end
   end
@@ -183,13 +230,39 @@ RSpec.describe "Bookmarks", type: :request do
       expect(response).to have_http_status(:ok)
     end
 
-    it "can access global index sorted by title" do
-      get bookmarks_path, params: { sort: "title" }
+    it "can access global index sorted by title via turbo frame" do
+      get bookmarks_path, params: { sort: "title" },
+          headers: { "Turbo-Frame" => "bookmarks_results" }
       expect(response).to have_http_status(:ok)
     end
 
-    it "can access global index with title filter and title sort" do
-      get bookmarks_path, params: { sort: "title", title: "test" }
+    it "can access global index with keyword filter and title sort via turbo frame" do
+      get bookmarks_path, params: { sort: "title", keyword: "test" },
+          headers: { "Turbo-Frame" => "bookmarks_results" }
+      expect(response).to have_http_status(:ok)
+    end
+
+    it "renders shell page for non-turbo index request" do
+      get bookmarks_path
+      expect(response.body).to include("bookmarks_results")
+      expect(response.body).to include("Keyword")
+    end
+
+    it "renders results for turbo frame index request" do
+      get bookmarks_path,
+          headers: { "Turbo-Frame" => "bookmarks_results" }
+      expect(response).to have_http_status(:ok)
+    end
+
+    it "can filter index by keyword via turbo frame" do
+      get bookmarks_path, params: { keyword: workshop.title },
+          headers: { "Turbo-Frame" => "bookmarks_results" }
+      expect(response).to have_http_status(:ok)
+    end
+
+    it "can sort index by popularity via turbo frame" do
+      get bookmarks_path, params: { sort: "popularity", direction: "asc" },
+          headers: { "Turbo-Frame" => "bookmarks_results" }
       expect(response).to have_http_status(:ok)
     end
 
@@ -227,23 +300,44 @@ RSpec.describe "Bookmarks", type: :request do
       }.to change(Bookmark, :count).by(-1)
     end
 
-    context "with tutorials" do
-      let(:tutorial) { create(:tutorial, :published) }
+    context "with video_recordings" do
+      let(:video_recording) { create(:video_recording, :published) }
 
-      it "can create a tutorial bookmark" do
+      it "can create a video_recording bookmark" do
         expect {
           post bookmarks_path,
-               params: { bookmark: { bookmarkable_id: tutorial.id,
-                                     bookmarkable_type: "Tutorial" } },
+               params: { bookmark: { bookmarkable_id: video_recording.id,
+                                     bookmarkable_type: "VideoRecording" } },
                headers: turbo_headers
         }.to change(Bookmark, :count).by(1)
       end
 
-      it "can destroy any tutorial bookmark" do
-        tutorial_bookmark = create(:bookmark, user: other_user, bookmarkable: tutorial)
+      it "can destroy any video_recording bookmark" do
+        video_recording_bookmark = create(:bookmark, user: other_user, bookmarkable: video_recording)
         expect {
-          delete bookmark_path(tutorial_bookmark)
+          delete bookmark_path(video_recording_bookmark)
         }.to change(Bookmark, :count).by(-1)
+      end
+    end
+
+    context "with person and video_recording bookmarks" do
+      let(:person) { create(:person) }
+      let(:video_recording) { create(:video_recording, :published) }
+      let!(:person_bookmark) { create(:bookmark, user: regular_user, bookmarkable: person) }
+      let!(:video_bookmark) { create(:bookmark, user: admin, bookmarkable: video_recording) }
+
+      it "renders admin index with person bookmark via turbo frame" do
+        get bookmarks_path,
+            headers: { "Turbo-Frame" => "bookmarks_results" }
+        expect(response).to have_http_status(:ok)
+        expect(response.body).to include(person.first_name)
+      end
+
+      it "renders admin index with video_recording bookmark via turbo frame" do
+        get bookmarks_path,
+            headers: { "Turbo-Frame" => "bookmarks_results" }
+        expect(response).to have_http_status(:ok)
+        expect(response.body).to include(video_recording.title)
       end
     end
   end

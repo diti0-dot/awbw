@@ -3,7 +3,7 @@ class Bookmark < ApplicationRecord
   belongs_to :bookmarkable, polymorphic: true
 
   BOOKMARKABLE_MODELS = %w[CommunityNews Event Organization Person Report Resource Story StoryIdea
-                           Tutorial Workshop WorkshopIdea WorkshopLog WorkshopVariation WorkshopVariationIdea].freeze
+                           VideoRecording Workshop WorkshopIdea WorkshopLog WorkshopVariation WorkshopVariationIdea].freeze
 
   DROPDOWN_MODELS = (BOOKMARKABLE_MODELS - %w[Report]).freeze
 
@@ -17,29 +17,19 @@ class Bookmark < ApplicationRecord
     bookmarkable_type.present? && bookmarkable_id.present? ? where(bookmarkable_type: bookmarkable_type,
                                                                    bookmarkable_id: bookmarkable_id) : all }
 
-  scope :sort_by_newest, -> { order(created_at: :desc) }
-  scope :sort_by_popularity, -> {
-    select("bookmarks.*, COUNT(all_b.id) as popularity")
-      .joins("LEFT JOIN bookmarks all_b ON all_b.bookmarkable_id = bookmarks.bookmarkable_id AND
-        all_b.bookmarkable_type = bookmarks.bookmarkable_type")
-      .group("bookmarks.id")
-      .order("popularity DESC") }
-
-
   def self.search(params, user: nil)
     bookmarks = user ? user.bookmarks : (is_a?(ActiveRecord::Relation) ? self : all)
-    bookmarks = bookmarks.filter_by_params(params)
-    bookmarks = bookmarks.sorted(params[:sort])
-    bookmarks
+    bookmarks.filter_by_params(params)
   end
 
-  def self.sorted(sort_by = nil) # sort and sort_by are namespaced
-    sort_by ||= "newest"
+  def self.sorted(sort_by = nil, direction = nil)
+    sort_by ||= "created_at"
+    asc = direction == "asc"
     case sort_by
-    when "newest"        then self.sort_by_newest
-    when "title"         then self.sort_by_title
-    when "popularity"    then self.sort_by_popularity
-    else self.sort_by_newest
+    when "created_at"    then order(created_at: asc ? :asc : :desc)
+    when "title"         then sort_by_title(asc)
+    when "popularity"    then sort_by_popularity(asc)
+    else order(created_at: :desc)
     end
   end
 
@@ -49,7 +39,7 @@ class Bookmark < ApplicationRecord
     bookmarks = bookmarks.bookmarkable_type(params[:bookmarkable_type])
     bookmarks = bookmarks.bookmarkable_attributes(params[:bookmarkable_type],
                                                   params[:bookmarkable_id])
-    bookmarks = bookmarks.title(params[:title]) if params[:title].present?
+    bookmarks = bookmarks.keyword(params[:keyword]) if params[:keyword].present?
     bookmarks = bookmarks.where(user_id: params[:user_id]) if params[:user_id].present?
     bookmarks = bookmarks.user_name(params[:user_name]) if params[:user_name].present?
     bookmarks = bookmarks.windows_type(params[:windows_type]) if params[:windows_type].present?
@@ -57,17 +47,30 @@ class Bookmark < ApplicationRecord
     bookmarks
   end
 
-  # Use aliased table names (st_ prefix) to avoid conflicts with title scope's JOINs
-  def self.sort_by_title
+  TITLE_COALESCE_SQL = <<~SQL.squish.freeze
+    LOWER(
+      COALESCE(
+        st_cn.title, st_ev.title, st_faq.question,
+        CONCAT(st_ppl.first_name, ' ', st_ppl.last_name),
+        st_org.name, st_rpt.type, st_res.title, st_st.title,
+        st_si.title, st_vr.title, st_ws.title, st_wi.title,
+        DATE_FORMAT(st_wl.date, '%Y-%m-%d'), st_wv.name, st_wvi.name
+      )
+    )
+  SQL
+
+  # Use aliased table names (st_ prefix) to avoid conflicts with keyword scope's JOINs
+  def self.sort_by_title(asc = true)
     bookmarks = self.joins(<<~SQL)
       LEFT JOIN community_news      AS st_cn  ON st_cn.id  = bookmarks.bookmarkable_id AND bookmarks.bookmarkable_type = 'CommunityNews'
       LEFT JOIN events              AS st_ev  ON st_ev.id  = bookmarks.bookmarkable_id AND bookmarks.bookmarkable_type = 'Event'
+      LEFT JOIN faqs                AS st_faq ON st_faq.id = bookmarks.bookmarkable_id AND bookmarks.bookmarkable_type = 'Faq'
       LEFT JOIN organizations       AS st_org ON st_org.id = bookmarks.bookmarkable_id AND bookmarks.bookmarkable_type = 'Organization'
       LEFT JOIN people              AS st_ppl ON st_ppl.id = bookmarks.bookmarkable_id AND bookmarks.bookmarkable_type = 'Person'
       LEFT JOIN resources           AS st_res ON st_res.id = bookmarks.bookmarkable_id AND bookmarks.bookmarkable_type = 'Resource'
       LEFT JOIN stories             AS st_st  ON st_st.id  = bookmarks.bookmarkable_id AND bookmarks.bookmarkable_type = 'Story'
       LEFT JOIN story_ideas         AS st_si  ON st_si.id  = bookmarks.bookmarkable_id AND bookmarks.bookmarkable_type = 'StoryIdea'
-      LEFT JOIN tutorials           AS st_tut ON st_tut.id = bookmarks.bookmarkable_id AND bookmarks.bookmarkable_type = 'Tutorial'
+      LEFT JOIN video_recordings    AS st_vr  ON st_vr.id  = bookmarks.bookmarkable_id AND bookmarks.bookmarkable_type = 'VideoRecording'
       LEFT JOIN workshops           AS st_ws  ON st_ws.id  = bookmarks.bookmarkable_id AND bookmarks.bookmarkable_type = 'Workshop'
       LEFT JOIN workshop_ideas      AS st_wi  ON st_wi.id  = bookmarks.bookmarkable_id AND bookmarks.bookmarkable_type = 'WorkshopIdea'
       LEFT JOIN workshop_logs       AS st_wl  ON st_wl.id  = bookmarks.bookmarkable_id AND bookmarks.bookmarkable_type = 'WorkshopLog'
@@ -75,63 +78,57 @@ class Bookmark < ApplicationRecord
       LEFT JOIN workshop_variation_ideas AS st_wvi ON st_wvi.id = bookmarks.bookmarkable_id AND bookmarks.bookmarkable_type = 'WorkshopVariationIdea'
       LEFT JOIN reports             AS st_rpt ON st_rpt.id = bookmarks.bookmarkable_id AND bookmarks.bookmarkable_type = 'Report'
     SQL
-    bookmarks.order(Arel.sql(<<~SQL.squish)
-      LOWER(
-        COALESCE(
-          st_cn.title,
-          st_ev.title,
-          CONCAT(st_ppl.first_name, ' ', st_ppl.last_name),
-          st_org.name,
-          st_rpt.type,
-          st_res.title,
-          st_st.title,
-          st_si.title,
-          st_tut.title,
-          st_ws.title,
-          st_wi.title,
-          DATE_FORMAT(st_wl.date, '%Y-%m-%d'),
-          st_wv.name,
-          st_wvi.name
-        )
-      ) ASC,
-      bookmarks.created_at DESC
-    SQL
-    )
+    dir = asc ? :asc : :desc
+    bookmarks.order(Arel.sql(TITLE_COALESCE_SQL).send(dir), bookmarks.arel_table[:created_at].desc)
   end
 
-  def self.title(title)
-    return all unless title.present?
+  def self.keyword(term)
+    return all unless term.present?
 
     bookmarks = self.all
     bookmarks = bookmarks.joins(<<~SQL)
       LEFT JOIN community_news ON community_news.id = bookmarks.bookmarkable_id AND bookmarks.bookmarkable_type = 'CommunityNews'
       LEFT JOIN events         ON events.id = bookmarks.bookmarkable_id AND bookmarks.bookmarkable_type = 'Event'
+      LEFT JOIN faqs           ON faqs.id = bookmarks.bookmarkable_id AND bookmarks.bookmarkable_type = 'Faq'
       LEFT JOIN organizations  ON organizations.id = bookmarks.bookmarkable_id AND bookmarks.bookmarkable_type = 'Organization'
       LEFT JOIN people         ON people.id = bookmarks.bookmarkable_id AND bookmarks.bookmarkable_type = 'Person'
       LEFT JOIN resources      ON resources.id = bookmarks.bookmarkable_id AND bookmarks.bookmarkable_type = 'Resource'
       LEFT JOIN stories        ON stories.id = bookmarks.bookmarkable_id AND bookmarks.bookmarkable_type = 'Story'
       LEFT JOIN story_ideas    ON story_ideas.id = bookmarks.bookmarkable_id AND bookmarks.bookmarkable_type = 'StoryIdea'
-      LEFT JOIN tutorials      ON tutorials.id = bookmarks.bookmarkable_id AND bookmarks.bookmarkable_type = 'Tutorial'
+      LEFT JOIN video_recordings ON video_recordings.id = bookmarks.bookmarkable_id AND bookmarks.bookmarkable_type = 'VideoRecording'
       LEFT JOIN workshops      ON workshops.id = bookmarks.bookmarkable_id AND bookmarks.bookmarkable_type = 'Workshop'
       LEFT JOIN workshop_ideas ON workshop_ideas.id = bookmarks.bookmarkable_id AND bookmarks.bookmarkable_type = 'WorkshopIdea'
       LEFT JOIN workshop_logs ON workshop_logs.id = bookmarks.bookmarkable_id AND bookmarks.bookmarkable_type = 'WorkshopLog'
       LEFT JOIN workshop_variations ON workshop_variations.id = bookmarks.bookmarkable_id AND bookmarks.bookmarkable_type = 'WorkshopVariation'
       LEFT JOIN workshop_variation_ideas ON workshop_variation_ideas.id = bookmarks.bookmarkable_id AND bookmarks.bookmarkable_type = 'WorkshopVariationIdea'
       LEFT JOIN reports ON reports.id = bookmarks.bookmarkable_id AND bookmarks.bookmarkable_type = 'Report'
+      LEFT JOIN action_text_rich_texts ON action_text_rich_texts.record_id = bookmarks.bookmarkable_id
+        AND action_text_rich_texts.record_type = bookmarks.bookmarkable_type
+        AND action_text_rich_texts.name = 'rhino_body'
     SQL
 
     bookmarks.where(
-      "community_news.title LIKE :title OR events.title LIKE :title OR people.first_name LIKE :title OR
-       people.last_name LIKE :title OR organizations.name LIKE :title OR resources.title LIKE :title OR
-       reports.type LIKE :title OR
-       stories.title LIKE :title OR workshops.title LIKE :title OR workshop_ideas.title LIKE :title OR
-       story_ideas.body LIKE :title OR -- searching body for story ideas (title exists but isn't used in UI)
-       tutorials.title LIKE :title OR
-       DATE_FORMAT(workshop_logs.date, '%Y-%m-%d') LIKE :title OR -- no title on workshop_logs
-       workshop_variations.name LIKE :title OR
-       workshop_variation_ideas.name LIKE :title",
-      title: "%#{title}%"
+      "community_news.title LIKE :q OR events.title LIKE :q OR faqs.question LIKE :q OR people.first_name LIKE :q OR
+       people.last_name LIKE :q OR organizations.name LIKE :q OR resources.title LIKE :q OR
+       reports.type LIKE :q OR
+       stories.title LIKE :q OR workshops.title LIKE :q OR workshop_ideas.title LIKE :q OR
+       story_ideas.body LIKE :q OR
+       video_recordings.title LIKE :q OR
+       DATE_FORMAT(workshop_logs.date, '%Y-%m-%d') LIKE :q OR
+       workshop_variations.name LIKE :q OR
+       workshop_variation_ideas.name LIKE :q OR
+       action_text_rich_texts.body LIKE :q",
+      q: "%#{term}%"
     )
+  end
+
+  def self.sort_by_popularity(asc = false)
+    dir = asc ? :asc : :desc
+    select("bookmarks.*, COUNT(all_b.id) as popularity")
+      .joins("LEFT JOIN bookmarks all_b ON all_b.bookmarkable_id = bookmarks.bookmarkable_id AND
+        all_b.bookmarkable_type = bookmarks.bookmarkable_type")
+      .group("bookmarks.id")
+      .order(Arel.sql("popularity").send(dir))
   end
 
   def self.windows_type(windows_type)
@@ -192,6 +189,22 @@ class Bookmark < ApplicationRecord
       SQL
       name: "%#{user_name_sanitized}%"
     )
+  end
+
+  DISPLAY_ASSOCIATIONS = %i[primary_asset gallery_assets windows_type].freeze
+
+  # Preload display associations on already-loaded bookmarkables, grouped by type.
+  # Safe for polymorphic because each type only gets associations it actually has.
+  def self.preload_bookmarkable_associations(bookmarks)
+    bookmarks.group_by(&:bookmarkable_type).each do |type, typed_bookmarks|
+      klass = type.constantize
+      assocs = DISPLAY_ASSOCIATIONS.select { |a| klass.reflect_on_association(a) }
+      next if assocs.empty?
+
+      records = typed_bookmarks.map(&:bookmarkable)
+      ActiveRecord::Associations::Preloader.new(records: records, associations: assocs).call
+    end
+    bookmarks
   end
 
   def primary_asset
