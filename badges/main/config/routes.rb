@@ -34,7 +34,6 @@ Rails.application.routes.draw do
   resources :users, only: [ :new, :index, :show, :edit, :update, :create, :destroy ] do
     collection do
       get :check_duplicates
-      post :retry_new
     end
     member do
       post :send_reset_password_instructions
@@ -48,8 +47,6 @@ Rails.application.routes.draw do
     end
     resources :comments, only: [ :index, :create ]
   end
-
-  post "workshop_logs/validate_new", to: "workshop_logs#validate_new"
 
   get "contact_us", to: "contact_us#index"
   post "contact_us", to: "contact_us#create"
@@ -111,7 +108,9 @@ Rails.application.routes.draw do
   resources :people do
     collection do
       get :check_duplicates
-      post :retry_new
+    end
+    member do
+      get :workshop_logs
     end
     resources :comments, only: [ :index, :create ]
   end
@@ -122,11 +121,14 @@ Rails.application.routes.draw do
     end
   end
   resources :organizations do
-   member do
-     get :populations_served
-   end
-   resources :comments, only: [ :index, :create ]
- end
+    collection do
+      get :check_duplicates
+    end
+    member do
+      get :populations_served
+    end
+    resources :comments, only: [ :index, :create ]
+  end
   resources :organization_statuses
   resources :affiliations
   resources :quotes
@@ -164,7 +166,7 @@ Rails.application.routes.draw do
   resources :windows_types
   resources :workshop_ideas
   resources :workshop_logs
-  resources :workshop_log_creation_wizard
+
   resources :workshop_variation_ideas
   resources :workshop_variations
   resources :workshops do

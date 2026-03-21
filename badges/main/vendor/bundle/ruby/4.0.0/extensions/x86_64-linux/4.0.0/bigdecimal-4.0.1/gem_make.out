@@ -22,17 +22,17 @@ checking for RB_WARN_CATEGORY_DEPRECATED in ruby.h... yes
 creating Makefile
 
 current directory: /home/runner/work/awbw/awbw/vendor/bundle/ruby/4.0.0/gems/bigdecimal-4.0.1/ext/bigdecimal
-make -j4 DESTDIR\= sitearchdir\=./.gem.20260125-2225-1s6qdp sitelibdir\=./.gem.20260125-2225-1s6qdp clean
+make -j4 DESTDIR\= sitearchdir\=./.gem.20260321-2932-dhvli5 sitelibdir\=./.gem.20260321-2932-dhvli5 clean
 
 current directory: /home/runner/work/awbw/awbw/vendor/bundle/ruby/4.0.0/gems/bigdecimal-4.0.1/ext/bigdecimal
-make -j4 DESTDIR\= sitearchdir\=./.gem.20260125-2225-1s6qdp sitelibdir\=./.gem.20260125-2225-1s6qdp
+make -j4 DESTDIR\= sitearchdir\=./.gem.20260321-2932-dhvli5 sitelibdir\=./.gem.20260321-2932-dhvli5
 compiling bigdecimal.c
 compiling missing.c
 linking shared-object bigdecimal.so
 
 current directory: /home/runner/work/awbw/awbw/vendor/bundle/ruby/4.0.0/gems/bigdecimal-4.0.1/ext/bigdecimal
-make -j4 DESTDIR\= sitearchdir\=./.gem.20260125-2225-1s6qdp sitelibdir\=./.gem.20260125-2225-1s6qdp install
-/usr/bin/install -c -m 0755 bigdecimal.so ./.gem.20260125-2225-1s6qdp
+make -j4 DESTDIR\= sitearchdir\=./.gem.20260321-2932-dhvli5 sitelibdir\=./.gem.20260321-2932-dhvli5 install
+/usr/bin/install -c -m 0755 bigdecimal.so ./.gem.20260321-2932-dhvli5
 
 current directory: /home/runner/work/awbw/awbw/vendor/bundle/ruby/4.0.0/gems/bigdecimal-4.0.1/ext/bigdecimal
-make DESTDIR\= sitearchdir\=./.gem.20260125-2225-1s6qdp sitelibdir\=./.gem.20260125-2225-1s6qdp clean
+make DESTDIR\= sitearchdir\=./.gem.20260321-2932-dhvli5 sitelibdir\=./.gem.20260321-2932-dhvli5 clean

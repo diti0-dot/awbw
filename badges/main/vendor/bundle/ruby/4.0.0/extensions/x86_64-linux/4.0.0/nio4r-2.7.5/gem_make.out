@@ -13,14 +13,18 @@ checking for sys/resource.h... yes
 creating Makefile
 
 current directory: /home/runner/work/awbw/awbw/vendor/bundle/ruby/4.0.0/gems/nio4r-2.7.5/ext/nio4r
-make -j4 DESTDIR\= sitearchdir\=./.gem.20260126-2230-5lx5bm sitelibdir\=./.gem.20260126-2230-5lx5bm clean
+make -j4 DESTDIR\= sitearchdir\=./.gem.20260321-2932-g7giwv sitelibdir\=./.gem.20260321-2932-g7giwv clean
 
 current directory: /home/runner/work/awbw/awbw/vendor/bundle/ruby/4.0.0/gems/nio4r-2.7.5/ext/nio4r
-make -j4 DESTDIR\= sitearchdir\=./.gem.20260126-2230-5lx5bm sitelibdir\=./.gem.20260126-2230-5lx5bm
+make -j4 DESTDIR\= sitearchdir\=./.gem.20260321-2932-g7giwv sitelibdir\=./.gem.20260321-2932-g7giwv
 compiling bytebuffer.c
 compiling monitor.c
 compiling nio4r_ext.c
 compiling selector.c
+bytebuffer.c: In function ‘Init_NIO_ByteBuffer’:
+bytebuffer.c:59:6: warning: old-style function definition [-Wold-style-definition]
+   59 | void Init_NIO_ByteBuffer()
+      |      ^~~~~~~~~~~~~~~~~~~
 In file included from nio4r_ext.c:6:
 ../libev/ev.c:234:5: warning: "EV_NO_THREADS" is not defined, evaluates to 0 [-Wundef]
   234 | #if EV_NO_THREADS
@@ -28,6 +32,10 @@ In file included from nio4r_ext.c:6:
 ../libev/ev.c:240:5: warning: "EV_NO_SMP" is not defined, evaluates to 0 [-Wundef]
   240 | #if EV_NO_SMP
       |     ^~~~~~~~~
+monitor.c: In function ‘Init_NIO_Monitor’:
+monitor.c:50:6: warning: old-style function definition [-Wold-style-definition]
+   50 | void Init_NIO_Monitor()
+      |      ^~~~~~~~~~~~~~~~
 ../libev/ev.c:573:48: warning: "/*" within comment [-Wcomment]
   573 | /*#define MIN_INTERVAL  0.00000095367431640625 /* 1/2**20, good till 2200 */
       |                                                 
@@ -129,14 +137,6 @@ In file included from nio4r_ext.c:6:
 ../libev/ev.c:1746:5: warning: "ECB_MEMORY_FENCE_NEEDS_PTHREADS" is not defined, evaluates to 0 [-Wundef]
  1746 | #if ECB_MEMORY_FENCE_NEEDS_PTHREADS
       |     ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-bytebuffer.c: In function ‘Init_NIO_ByteBuffer’:
-bytebuffer.c:59:6: warning: old-style function definition [-Wold-style-definition]
-   59 | void Init_NIO_ByteBuffer()
-      |      ^~~~~~~~~~~~~~~~~~~
-monitor.c: In function ‘Init_NIO_Monitor’:
-monitor.c:50:6: warning: old-style function definition [-Wold-style-definition]
-   50 | void Init_NIO_Monitor()
-      |      ^~~~~~~~~~~~~~~~
 ../libev/ev.c:1976:5: warning: "EV_AVOID_STDIO" is not defined, evaluates to 0 [-Wundef]
  1976 | #if EV_AVOID_STDIO
       |     ^~~~~~~~~~~~~~
@@ -275,8 +275,8 @@ cc1: note: unrecognized command-line option ‘-Wno-constant-logical-operand’ 
 linking shared-object nio4r_ext.so
 
 current directory: /home/runner/work/awbw/awbw/vendor/bundle/ruby/4.0.0/gems/nio4r-2.7.5/ext/nio4r
-make -j4 DESTDIR\= sitearchdir\=./.gem.20260126-2230-5lx5bm sitelibdir\=./.gem.20260126-2230-5lx5bm install
-/usr/bin/install -c -m 0755 nio4r_ext.so ./.gem.20260126-2230-5lx5bm
+make -j4 DESTDIR\= sitearchdir\=./.gem.20260321-2932-g7giwv sitelibdir\=./.gem.20260321-2932-g7giwv install
+/usr/bin/install -c -m 0755 nio4r_ext.so ./.gem.20260321-2932-g7giwv
 
 current directory: /home/runner/work/awbw/awbw/vendor/bundle/ruby/4.0.0/gems/nio4r-2.7.5/ext/nio4r
-make DESTDIR\= sitearchdir\=./.gem.20260126-2230-5lx5bm sitelibdir\=./.gem.20260126-2230-5lx5bm clean
+make DESTDIR\= sitearchdir\=./.gem.20260321-2932-g7giwv sitelibdir\=./.gem.20260321-2932-g7giwv clean

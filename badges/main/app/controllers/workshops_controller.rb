@@ -192,8 +192,6 @@ class WorkshopsController < ApplicationController
 
 
   def set_form_variables
-    @age_ranges = Category.includes(:category_type)
-                          .where("category_types.name = 'AgeRange'").pluck(:name)
     potential_series = authorized_scope(Workshop.published).includes(:windows_type)
     potential_series = potential_series.where.not(id: @workshop.id) if @workshop.persisted?
     @potential_series_workshops = authorized_scope(potential_series).order(:title)
@@ -212,6 +210,7 @@ class WorkshopsController < ApplicationController
         .sort_by { |type, _| type&.name.to_s.downcase }
 
     @sectors = Sector.published.order(:name)
+    @age_range_comments = @workshop.persisted? ? @workshop.comments.where("body LIKE ?", "%[AGE_RANGE_DATA]%") : []
 
     @workshop.build_primary_asset if @workshop.primary_asset.blank?
     @workshop.gallery_assets.build
@@ -232,7 +231,6 @@ class WorkshopsController < ApplicationController
       :time_intro, :time_closing, :time_creation, :time_demonstration,
       :time_warm_up, :time_opening, :time_opening_circle,
 
-      :age_range, :age_range_spanish,
       :closing, :closing_spanish,
       :creation, :creation_spanish,
       :demonstration, :demonstration_spanish,
@@ -271,7 +269,6 @@ class WorkshopsController < ApplicationController
       :rhino_objective_spanish,
       :rhino_materials_spanish,
       :rhino_optional_materials_spanish,
-      :rhino_age_range_spanish,
       :rhino_setup_spanish,
       :rhino_introduction_spanish,
       :rhino_opening_circle_spanish,

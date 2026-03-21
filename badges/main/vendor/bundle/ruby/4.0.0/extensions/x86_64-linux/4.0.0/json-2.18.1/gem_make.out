@@ -10,16 +10,16 @@ checking for cpuid.h... yes
 creating Makefile
 
 current directory: /home/runner/work/awbw/awbw/vendor/bundle/ruby/4.0.0/gems/json-2.18.1/ext/json/ext/parser
-make -j4 DESTDIR\= sitearchdir\=./.gem.20260209-2245-tnc35d sitelibdir\=./.gem.20260209-2245-tnc35d clean
+make -j4 DESTDIR\= sitearchdir\=./.gem.20260321-2932-6c671y sitelibdir\=./.gem.20260321-2932-6c671y clean
 
 current directory: /home/runner/work/awbw/awbw/vendor/bundle/ruby/4.0.0/gems/json-2.18.1/ext/json/ext/parser
-make -j4 DESTDIR\= sitearchdir\=./.gem.20260209-2245-tnc35d sitelibdir\=./.gem.20260209-2245-tnc35d
+make -j4 DESTDIR\= sitearchdir\=./.gem.20260321-2932-6c671y sitelibdir\=./.gem.20260321-2932-6c671y
 compiling parser.c
 linking shared-object json/ext/parser.so
 
 current directory: /home/runner/work/awbw/awbw/vendor/bundle/ruby/4.0.0/gems/json-2.18.1/ext/json/ext/parser
-make -j4 DESTDIR\= sitearchdir\=./.gem.20260209-2245-tnc35d sitelibdir\=./.gem.20260209-2245-tnc35d install
-/usr/bin/install -c -m 0755 parser.so ./.gem.20260209-2245-tnc35d/json/ext
+make -j4 DESTDIR\= sitearchdir\=./.gem.20260321-2932-6c671y sitelibdir\=./.gem.20260321-2932-6c671y install
+/usr/bin/install -c -m 0755 parser.so ./.gem.20260321-2932-6c671y/json/ext
 
 current directory: /home/runner/work/awbw/awbw/vendor/bundle/ruby/4.0.0/gems/json-2.18.1/ext/json/ext/parser
-make DESTDIR\= sitearchdir\=./.gem.20260209-2245-tnc35d sitelibdir\=./.gem.20260209-2245-tnc35d clean
+make DESTDIR\= sitearchdir\=./.gem.20260321-2932-6c671y sitelibdir\=./.gem.20260321-2932-6c671y clean

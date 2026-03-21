@@ -4,16 +4,16 @@ checking for rb_ext_ractor_safe() in ruby.h... yes
 creating Makefile
 
 current directory: /home/runner/work/awbw/awbw/vendor/bundle/ruby/4.0.0/gems/erb-6.0.1/ext/erb/escape
-make -j4 DESTDIR\= sitearchdir\=./.gem.20260125-2225-27bnub sitelibdir\=./.gem.20260125-2225-27bnub clean
+make -j4 DESTDIR\= sitearchdir\=./.gem.20260321-2932-gkacmt sitelibdir\=./.gem.20260321-2932-gkacmt clean
 
 current directory: /home/runner/work/awbw/awbw/vendor/bundle/ruby/4.0.0/gems/erb-6.0.1/ext/erb/escape
-make -j4 DESTDIR\= sitearchdir\=./.gem.20260125-2225-27bnub sitelibdir\=./.gem.20260125-2225-27bnub
+make -j4 DESTDIR\= sitearchdir\=./.gem.20260321-2932-gkacmt sitelibdir\=./.gem.20260321-2932-gkacmt
 compiling escape.c
 linking shared-object erb/escape.so
 
 current directory: /home/runner/work/awbw/awbw/vendor/bundle/ruby/4.0.0/gems/erb-6.0.1/ext/erb/escape
-make -j4 DESTDIR\= sitearchdir\=./.gem.20260125-2225-27bnub sitelibdir\=./.gem.20260125-2225-27bnub install
-/usr/bin/install -c -m 0755 escape.so ./.gem.20260125-2225-27bnub/erb
+make -j4 DESTDIR\= sitearchdir\=./.gem.20260321-2932-gkacmt sitelibdir\=./.gem.20260321-2932-gkacmt install
+/usr/bin/install -c -m 0755 escape.so ./.gem.20260321-2932-gkacmt/erb
 
 current directory: /home/runner/work/awbw/awbw/vendor/bundle/ruby/4.0.0/gems/erb-6.0.1/ext/erb/escape
-make DESTDIR\= sitearchdir\=./.gem.20260125-2225-27bnub sitelibdir\=./.gem.20260125-2225-27bnub clean
+make DESTDIR\= sitearchdir\=./.gem.20260321-2932-gkacmt sitelibdir\=./.gem.20260321-2932-gkacmt clean
