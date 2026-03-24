@@ -16,16 +16,16 @@ checking for ttyname_r()... yes
 creating Makefile
 
 current directory: /home/runner/work/awbw/awbw/vendor/bundle/ruby/4.0.0/gems/io-console-0.8.2/ext/io/console
-make -j4 DESTDIR\= sitearchdir\=./.gem.20260321-2932-jy2n6u sitelibdir\=./.gem.20260321-2932-jy2n6u clean
+make -j4 DESTDIR\= sitearchdir\=./.gem.20260321-2363-8cpspr sitelibdir\=./.gem.20260321-2363-8cpspr clean
 
 current directory: /home/runner/work/awbw/awbw/vendor/bundle/ruby/4.0.0/gems/io-console-0.8.2/ext/io/console
-make -j4 DESTDIR\= sitearchdir\=./.gem.20260321-2932-jy2n6u sitelibdir\=./.gem.20260321-2932-jy2n6u
+make -j4 DESTDIR\= sitearchdir\=./.gem.20260321-2363-8cpspr sitelibdir\=./.gem.20260321-2363-8cpspr
 compiling console.c
 linking shared-object io/console.so
 
 current directory: /home/runner/work/awbw/awbw/vendor/bundle/ruby/4.0.0/gems/io-console-0.8.2/ext/io/console
-make -j4 DESTDIR\= sitearchdir\=./.gem.20260321-2932-jy2n6u sitelibdir\=./.gem.20260321-2932-jy2n6u install
-/usr/bin/install -c -m 0755 console.so ./.gem.20260321-2932-jy2n6u/io
+make -j4 DESTDIR\= sitearchdir\=./.gem.20260321-2363-8cpspr sitelibdir\=./.gem.20260321-2363-8cpspr install
+/usr/bin/install -c -m 0755 console.so ./.gem.20260321-2363-8cpspr/io
 
 current directory: /home/runner/work/awbw/awbw/vendor/bundle/ruby/4.0.0/gems/io-console-0.8.2/ext/io/console
-make DESTDIR\= sitearchdir\=./.gem.20260321-2932-jy2n6u sitelibdir\=./.gem.20260321-2932-jy2n6u clean
+make DESTDIR\= sitearchdir\=./.gem.20260321-2363-8cpspr sitelibdir\=./.gem.20260321-2363-8cpspr clean

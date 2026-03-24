@@ -8,16 +8,16 @@ checking for whether -std=c99 is accepted as CFLAGS... yes
 creating Makefile
 
 current directory: /home/runner/work/awbw/awbw/vendor/bundle/ruby/4.0.0/gems/bootsnap-1.22.0/ext/bootsnap
-make -j4 DESTDIR\= sitearchdir\=./.gem.20260321-2932-v7tnuu sitelibdir\=./.gem.20260321-2932-v7tnuu clean
+make -j4 DESTDIR\= sitearchdir\=./.gem.20260321-2363-e77696 sitelibdir\=./.gem.20260321-2363-e77696 clean
 
 current directory: /home/runner/work/awbw/awbw/vendor/bundle/ruby/4.0.0/gems/bootsnap-1.22.0/ext/bootsnap
-make -j4 DESTDIR\= sitearchdir\=./.gem.20260321-2932-v7tnuu sitelibdir\=./.gem.20260321-2932-v7tnuu
+make -j4 DESTDIR\= sitearchdir\=./.gem.20260321-2363-e77696 sitelibdir\=./.gem.20260321-2363-e77696
 compiling bootsnap.c
 linking shared-object bootsnap/bootsnap.so
 
 current directory: /home/runner/work/awbw/awbw/vendor/bundle/ruby/4.0.0/gems/bootsnap-1.22.0/ext/bootsnap
-make -j4 DESTDIR\= sitearchdir\=./.gem.20260321-2932-v7tnuu sitelibdir\=./.gem.20260321-2932-v7tnuu install
-/usr/bin/install -c -m 0755 bootsnap.so ./.gem.20260321-2932-v7tnuu/bootsnap
+make -j4 DESTDIR\= sitearchdir\=./.gem.20260321-2363-e77696 sitelibdir\=./.gem.20260321-2363-e77696 install
+/usr/bin/install -c -m 0755 bootsnap.so ./.gem.20260321-2363-e77696/bootsnap
 
 current directory: /home/runner/work/awbw/awbw/vendor/bundle/ruby/4.0.0/gems/bootsnap-1.22.0/ext/bootsnap
-make DESTDIR\= sitearchdir\=./.gem.20260321-2932-v7tnuu sitelibdir\=./.gem.20260321-2932-v7tnuu clean
+make DESTDIR\= sitearchdir\=./.gem.20260321-2363-e77696 sitelibdir\=./.gem.20260321-2363-e77696 clean

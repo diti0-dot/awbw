@@ -3,10 +3,10 @@ current directory: /home/runner/work/awbw/awbw/vendor/bundle/ruby/4.0.0/gems/bcr
 creating Makefile
 
 current directory: /home/runner/work/awbw/awbw/vendor/bundle/ruby/4.0.0/gems/bcrypt-3.1.16/ext/mri
-make -j4 DESTDIR\= sitearchdir\=./.gem.20260321-2932-t0xo0o sitelibdir\=./.gem.20260321-2932-t0xo0o clean
+make -j4 DESTDIR\= sitearchdir\=./.gem.20260321-2363-b52zp sitelibdir\=./.gem.20260321-2363-b52zp clean
 
 current directory: /home/runner/work/awbw/awbw/vendor/bundle/ruby/4.0.0/gems/bcrypt-3.1.16/ext/mri
-make -j4 DESTDIR\= sitearchdir\=./.gem.20260321-2932-t0xo0o sitelibdir\=./.gem.20260321-2932-t0xo0o
+make -j4 DESTDIR\= sitearchdir\=./.gem.20260321-2363-b52zp sitelibdir\=./.gem.20260321-2363-b52zp
 compiling bcrypt_ext.c
 compiling crypt_blowfish.c
 gcc  -D__SKIP_GNU -DENABLE_PATH_CHECK=0    -c -o x86.o x86.S
@@ -29,8 +29,8 @@ cc1: note: unrecognized command-line option ‘-Wno-constant-logical-operand’ 
 linking shared-object bcrypt_ext.so
 
 current directory: /home/runner/work/awbw/awbw/vendor/bundle/ruby/4.0.0/gems/bcrypt-3.1.16/ext/mri
-make -j4 DESTDIR\= sitearchdir\=./.gem.20260321-2932-t0xo0o sitelibdir\=./.gem.20260321-2932-t0xo0o install
-/usr/bin/install -c -m 0755 bcrypt_ext.so ./.gem.20260321-2932-t0xo0o
+make -j4 DESTDIR\= sitearchdir\=./.gem.20260321-2363-b52zp sitelibdir\=./.gem.20260321-2363-b52zp install
+/usr/bin/install -c -m 0755 bcrypt_ext.so ./.gem.20260321-2363-b52zp
 
 current directory: /home/runner/work/awbw/awbw/vendor/bundle/ruby/4.0.0/gems/bcrypt-3.1.16/ext/mri
-make DESTDIR\= sitearchdir\=./.gem.20260321-2932-t0xo0o sitelibdir\=./.gem.20260321-2932-t0xo0o clean
+make DESTDIR\= sitearchdir\=./.gem.20260321-2363-b52zp sitelibdir\=./.gem.20260321-2363-b52zp clean
