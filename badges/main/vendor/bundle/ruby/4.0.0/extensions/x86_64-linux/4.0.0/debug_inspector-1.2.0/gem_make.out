@@ -3,16 +3,16 @@ current directory: /home/runner/work/awbw/awbw/vendor/bundle/ruby/4.0.0/gems/deb
 creating Makefile
 
 current directory: /home/runner/work/awbw/awbw/vendor/bundle/ruby/4.0.0/gems/debug_inspector-1.2.0/ext/debug_inspector
-make -j4 DESTDIR\= sitearchdir\=./.gem.20260321-2363-wicv5p sitelibdir\=./.gem.20260321-2363-wicv5p clean
+make -j4 DESTDIR\= sitearchdir\=./.gem.20260423-2919-vfwacs sitelibdir\=./.gem.20260423-2919-vfwacs clean
 
 current directory: /home/runner/work/awbw/awbw/vendor/bundle/ruby/4.0.0/gems/debug_inspector-1.2.0/ext/debug_inspector
-make -j4 DESTDIR\= sitearchdir\=./.gem.20260321-2363-wicv5p sitelibdir\=./.gem.20260321-2363-wicv5p
+make -j4 DESTDIR\= sitearchdir\=./.gem.20260423-2919-vfwacs sitelibdir\=./.gem.20260423-2919-vfwacs
 compiling debug_inspector.c
 linking shared-object debug_inspector.so
 
 current directory: /home/runner/work/awbw/awbw/vendor/bundle/ruby/4.0.0/gems/debug_inspector-1.2.0/ext/debug_inspector
-make -j4 DESTDIR\= sitearchdir\=./.gem.20260321-2363-wicv5p sitelibdir\=./.gem.20260321-2363-wicv5p install
-/usr/bin/install -c -m 0755 debug_inspector.so ./.gem.20260321-2363-wicv5p
+make -j4 DESTDIR\= sitearchdir\=./.gem.20260423-2919-vfwacs sitelibdir\=./.gem.20260423-2919-vfwacs install
+/usr/bin/install -c -m 0755 debug_inspector.so ./.gem.20260423-2919-vfwacs
 
 current directory: /home/runner/work/awbw/awbw/vendor/bundle/ruby/4.0.0/gems/debug_inspector-1.2.0/ext/debug_inspector
-make DESTDIR\= sitearchdir\=./.gem.20260321-2363-wicv5p sitelibdir\=./.gem.20260321-2363-wicv5p clean
+make DESTDIR\= sitearchdir\=./.gem.20260423-2919-vfwacs sitelibdir\=./.gem.20260423-2919-vfwacs clean

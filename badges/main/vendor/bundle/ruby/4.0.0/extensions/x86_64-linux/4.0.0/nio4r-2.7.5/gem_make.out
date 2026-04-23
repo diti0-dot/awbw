@@ -13,14 +13,22 @@ checking for sys/resource.h... yes
 creating Makefile
 
 current directory: /home/runner/work/awbw/awbw/vendor/bundle/ruby/4.0.0/gems/nio4r-2.7.5/ext/nio4r
-make -j4 DESTDIR\= sitearchdir\=./.gem.20260321-2363-gor2zh sitelibdir\=./.gem.20260321-2363-gor2zh clean
+make -j4 DESTDIR\= sitearchdir\=./.gem.20260423-2919-6haehi sitelibdir\=./.gem.20260423-2919-6haehi clean
 
 current directory: /home/runner/work/awbw/awbw/vendor/bundle/ruby/4.0.0/gems/nio4r-2.7.5/ext/nio4r
-make -j4 DESTDIR\= sitearchdir\=./.gem.20260321-2363-gor2zh sitelibdir\=./.gem.20260321-2363-gor2zh
-compiling bytebuffer.c
+make -j4 DESTDIR\= sitearchdir\=./.gem.20260423-2919-6haehi sitelibdir\=./.gem.20260423-2919-6haehi
 compiling monitor.c
+compiling bytebuffer.c
 compiling nio4r_ext.c
 compiling selector.c
+monitor.c: In function ‘Init_NIO_Monitor’:
+monitor.c:50:6: warning: old-style function definition [-Wold-style-definition]
+   50 | void Init_NIO_Monitor()
+      |      ^~~~~~~~~~~~~~~~
+bytebuffer.c: In function ‘Init_NIO_ByteBuffer’:
+bytebuffer.c:59:6: warning: old-style function definition [-Wold-style-definition]
+   59 | void Init_NIO_ByteBuffer()
+      |      ^~~~~~~~~~~~~~~~~~~
 In file included from nio4r_ext.c:6:
 ../libev/ev.c:234:5: warning: "EV_NO_THREADS" is not defined, evaluates to 0 [-Wundef]
   234 | #if EV_NO_THREADS
@@ -106,16 +114,12 @@ In file included from nio4r_ext.c:6:
 ../libev/ev.c:1374:5: note: in expansion of macro ‘ECB_CPP’
  1374 | #if ECB_CPP
       |     ^~~~~~~
-bytebuffer.c: In function ‘Init_NIO_ByteBuffer’:
 ../libev/ev.c:734:20: warning: "__cplusplus" is not defined, evaluates to 0 [-Wundef]
   734 | #define ECB_CPP   (__cplusplus+0)
       |                    ^~~~~~~~~~~
 ../libev/ev.c:1409:5: note: in expansion of macro ‘ECB_CPP’
  1409 | #if ECB_CPP
       |     ^~~~~~~
-bytebuffer.c:59:6: warning: old-style function definition [-Wold-style-definition]
-   59 | void Init_NIO_ByteBuffer()
-      |      ^~~~~~~~~~~~~~~~~~~
 ../libev/ev.c:1425:5: warning: "ecb_cplusplus_does_not_suck" is not defined, evaluates to 0 [-Wundef]
  1425 | #if ecb_cplusplus_does_not_suck
       |     ^~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -123,10 +127,10 @@ bytebuffer.c:59:6: warning: old-style function definition [-Wold-style-definitio
 ../libev/ev.c:1510:13: warning: comparison of integer expressions of different signedness: ‘unsigned int’ and ‘int’ [-Wsign-compare]
  1510 |       if (e < (14 - 24)) /* might not be sharp, but is good enough */
       |             ^
-monitor.c: In function ‘Init_NIO_Monitor’:
-monitor.c:50:6: warning: old-style function definition [-Wold-style-definition]
-   50 | void Init_NIO_Monitor()
-      |      ^~~~~~~~~~~~~~~~
+selector.c: In function ‘NIO_Selector_wakeup’:
+selector.c:525:5: warning: ignoring return value of ‘write’ declared with attribute ‘warn_unused_result’ [-Wunused-result]
+  525 |     write(selector->wakeup_writer, "\0", 1);
+      |     ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ../libev/ev.c: At top level:
 ../libev/ev.c:1540:8: warning: "__i386" is not defined, evaluates to 0 [-Wundef]
  1540 |     || __i386 || __i386__ \
@@ -188,10 +192,6 @@ In file included from ../libev/ev.c:2130:
 ../libev/ev.c:2402:31: warning: "EV_USE_IOCP" is not defined, evaluates to 0 [-Wundef]
  2402 | #if EV_SELECT_IS_WINSOCKET || EV_USE_IOCP
       |                               ^~~~~~~~~~~
-selector.c: In function ‘NIO_Selector_wakeup’:
-selector.c:525:5: warning: ignoring return value of ‘write’ declared with attribute ‘warn_unused_result’ [-Wunused-result]
-  525 |     write(selector->wakeup_writer, "\0", 1);
-      |     ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ../libev/ev.c: At top level:
 ../libev/ev.c:3073:5: warning: "EV_USE_IOCP" is not defined, evaluates to 0 [-Wundef]
  3073 | #if EV_USE_IOCP
@@ -227,6 +227,10 @@ In file included from ../libev/ev.c:3095:
 ../libev/ev.c:3409:5: warning: "EV_USE_IOCP" is not defined, evaluates to 0 [-Wundef]
  3409 | #if EV_USE_IOCP
       |     ^~~~~~~~~~~
+At top level:
+cc1: note: unrecognized command-line option ‘-Wno-self-assign’ may have been intended to silence earlier diagnostics
+cc1: note: unrecognized command-line option ‘-Wno-parentheses-equality’ may have been intended to silence earlier diagnostics
+cc1: note: unrecognized command-line option ‘-Wno-constant-logical-operand’ may have been intended to silence earlier diagnostics
 ../libev/ev.c: In function ‘ev_io_start’:
 ../libev/ev.c:4417:34: warning: suggest parentheses around arithmetic in operand of ‘|’ [-Wparentheses]
  4417 |   fd_change (EV_A_ fd, w->events & EV__IOFDSET | EV_ANFD_REIFY);
@@ -268,15 +272,11 @@ At top level:
 cc1: note: unrecognized command-line option ‘-Wno-self-assign’ may have been intended to silence earlier diagnostics
 cc1: note: unrecognized command-line option ‘-Wno-parentheses-equality’ may have been intended to silence earlier diagnostics
 cc1: note: unrecognized command-line option ‘-Wno-constant-logical-operand’ may have been intended to silence earlier diagnostics
-At top level:
-cc1: note: unrecognized command-line option ‘-Wno-self-assign’ may have been intended to silence earlier diagnostics
-cc1: note: unrecognized command-line option ‘-Wno-parentheses-equality’ may have been intended to silence earlier diagnostics
-cc1: note: unrecognized command-line option ‘-Wno-constant-logical-operand’ may have been intended to silence earlier diagnostics
 linking shared-object nio4r_ext.so
 
 current directory: /home/runner/work/awbw/awbw/vendor/bundle/ruby/4.0.0/gems/nio4r-2.7.5/ext/nio4r
-make -j4 DESTDIR\= sitearchdir\=./.gem.20260321-2363-gor2zh sitelibdir\=./.gem.20260321-2363-gor2zh install
-/usr/bin/install -c -m 0755 nio4r_ext.so ./.gem.20260321-2363-gor2zh
+make -j4 DESTDIR\= sitearchdir\=./.gem.20260423-2919-6haehi sitelibdir\=./.gem.20260423-2919-6haehi install
+/usr/bin/install -c -m 0755 nio4r_ext.so ./.gem.20260423-2919-6haehi
 
 current directory: /home/runner/work/awbw/awbw/vendor/bundle/ruby/4.0.0/gems/nio4r-2.7.5/ext/nio4r
-make DESTDIR\= sitearchdir\=./.gem.20260321-2363-gor2zh sitelibdir\=./.gem.20260321-2363-gor2zh clean
+make DESTDIR\= sitearchdir\=./.gem.20260423-2919-6haehi sitelibdir\=./.gem.20260423-2919-6haehi clean

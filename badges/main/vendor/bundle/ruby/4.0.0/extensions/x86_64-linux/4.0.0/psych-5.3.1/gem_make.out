@@ -4,13 +4,13 @@ checking for pkg-config for yaml-0.1... [" ", "", "-lyaml"]
 creating Makefile
 
 current directory: /home/runner/work/awbw/awbw/vendor/bundle/ruby/4.0.0/gems/psych-5.3.1/ext/psych
-make -j4 DESTDIR\= sitearchdir\=./.gem.20260321-2363-or8c8p sitelibdir\=./.gem.20260321-2363-or8c8p clean
+make -j4 DESTDIR\= sitearchdir\=./.gem.20260423-2919-gp9fmr sitelibdir\=./.gem.20260423-2919-gp9fmr clean
 cd libyaml && make clean
 /bin/sh: 1: cd: can't cd to libyaml
 make: [Makefile:287: clean-so] Error 2 (ignored)
 
 current directory: /home/runner/work/awbw/awbw/vendor/bundle/ruby/4.0.0/gems/psych-5.3.1/ext/psych
-make -j4 DESTDIR\= sitearchdir\=./.gem.20260321-2363-or8c8p sitelibdir\=./.gem.20260321-2363-or8c8p
+make -j4 DESTDIR\= sitearchdir\=./.gem.20260423-2919-gp9fmr sitelibdir\=./.gem.20260423-2919-gp9fmr
 compiling psych.c
 compiling psych_emitter.c
 compiling psych_parser.c
@@ -19,11 +19,11 @@ compiling psych_yaml_tree.c
 linking shared-object psych.so
 
 current directory: /home/runner/work/awbw/awbw/vendor/bundle/ruby/4.0.0/gems/psych-5.3.1/ext/psych
-make -j4 DESTDIR\= sitearchdir\=./.gem.20260321-2363-or8c8p sitelibdir\=./.gem.20260321-2363-or8c8p install
-/usr/bin/install -c -m 0755 psych.so ./.gem.20260321-2363-or8c8p
+make -j4 DESTDIR\= sitearchdir\=./.gem.20260423-2919-gp9fmr sitelibdir\=./.gem.20260423-2919-gp9fmr install
+/usr/bin/install -c -m 0755 psych.so ./.gem.20260423-2919-gp9fmr
 
 current directory: /home/runner/work/awbw/awbw/vendor/bundle/ruby/4.0.0/gems/psych-5.3.1/ext/psych
-make DESTDIR\= sitearchdir\=./.gem.20260321-2363-or8c8p sitelibdir\=./.gem.20260321-2363-or8c8p clean
+make DESTDIR\= sitearchdir\=./.gem.20260423-2919-gp9fmr sitelibdir\=./.gem.20260423-2919-gp9fmr clean
 cd libyaml && make clean
 /bin/sh: 1: cd: can't cd to libyaml
 make: [Makefile:287: clean-so] Error 2 (ignored)
