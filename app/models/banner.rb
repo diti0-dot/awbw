@@ -12,4 +12,9 @@ class Banner < ApplicationRecord
   def name
     content.truncate(50)
   end
+  scope :active, -> {
+    where(show: true)
+      .where("started_at IS NULL OR started_at <= ?", Time.current)
+      .where("ended_at IS NULL OR ended_at >= ?", Time.current)
+  }
 end

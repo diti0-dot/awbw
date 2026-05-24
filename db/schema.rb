@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_03_12_120000) do
+ActiveRecord::Schema[8.1].define(version: 2026_03_24_110932) do
   create_table "action_text_mentions", charset: "utf8mb4", collation: "utf8mb4_unicode_ci", force: :cascade do |t|
     t.bigint "action_text_rich_text_id", null: false
     t.datetime "created_at", null: false
@@ -134,7 +134,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_03_12_120000) do
 
   create_table "ahoy_events", charset: "utf8mb4", collation: "utf8mb4_unicode_ci", force: :cascade do |t|
     t.string "name"
-    t.json "properties"
+    t.text "properties", size: :long, collation: "utf8mb4_bin"
     t.bigint "resource_id"
     t.string "resource_type"
     t.datetime "time"
@@ -145,6 +145,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_03_12_120000) do
     t.index ["resource_type", "resource_id", "time"], name: "index_ahoy_events_on_resource_type_and_resource_id_and_time"
     t.index ["user_id"], name: "index_ahoy_events_on_user_id"
     t.index ["visit_id"], name: "index_ahoy_events_on_visit_id"
+    t.check_constraint "json_valid(`properties`)", name: "properties"
   end
 
   create_table "ahoy_visits", charset: "utf8mb4", collation: "utf8mb4_unicode_ci", force: :cascade do |t|
@@ -213,8 +214,10 @@ ActiveRecord::Schema[8.1].define(version: 2026_03_12_120000) do
     t.text "content"
     t.datetime "created_at", precision: nil, null: false
     t.integer "created_by_id"
+    t.datetime "ended_at"
     t.boolean "published", default: false, null: false
     t.boolean "show"
+    t.datetime "started_at"
     t.datetime "updated_at", precision: nil, null: false
     t.integer "updated_by_id"
     t.index ["created_by_id"], name: "index_banners_on_created_by_id"
@@ -223,7 +226,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_03_12_120000) do
   end
 
   create_table "blazer_audits", charset: "utf8mb4", collation: "utf8mb4_unicode_ci", force: :cascade do |t|
-    t.timestamp "created_at", null: false
+    t.timestamp "created_at", default: -> { "current_timestamp() ON UPDATE current_timestamp()" }, null: false
     t.string "data_source"
     t.bigint "query_id"
     t.text "statement"
@@ -686,7 +689,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_03_12_120000) do
     t.string "payment_type", default: "stripe", null: false
     t.string "status", null: false
     t.string "stripe_charge_id"
-    t.json "stripe_metadata"
+    t.text "stripe_metadata", size: :long, collation: "utf8mb4_bin"
     t.string "stripe_payment_intent_id"
     t.datetime "updated_at", null: false
     t.index ["event_id"], name: "index_payments_on_event_id"
@@ -697,6 +700,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_03_12_120000) do
     t.index ["payer_type", "payer_id"], name: "index_payments_on_payer_type_and_payer_id"
     t.index ["stripe_charge_id"], name: "index_payments_on_stripe_charge_id"
     t.index ["stripe_payment_intent_id"], name: "index_payments_on_stripe_payment_intent_id", unique: true
+    t.check_constraint "json_valid(`stripe_metadata`)", name: "stripe_metadata"
   end
 
   create_table "people", charset: "utf8mb4", collation: "utf8mb4_unicode_ci", force: :cascade do |t|
